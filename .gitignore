@@ -1,0 +1,12 @@
+# 빌드 산출물
+bin/
+obj/
+*.user
+
+# 번들 ffmpeg. 저장소에 넣지 않는다 (용량 + GPL 재배포).
+# scripts\get-ffmpeg.ps1 로 각자 한 번 받는다.
+tools/ffmpeg/
+
+# 로컬 개발 설정
+.vs/
+.idea/
