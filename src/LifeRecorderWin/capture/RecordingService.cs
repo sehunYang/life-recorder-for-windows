@@ -159,8 +159,9 @@ internal sealed class RecordingService : IDisposable
         {
             if (_session == null) return;
             var now = ScreenRecorderSession.VirtualScreenRect();
-            if ($"{now.Width}x{now.Height}" == _session.CaptureSize) return;
-            Log.Info($"프레임 크기 변경 {_session.CaptureSize} → {now.Width}x{now.Height}, 세션을 다시 엽니다");
+            var before = _session.CaptureRect;
+            if (now == before) return;
+            Log.Info($"잡는 영역 변경 {before.Width}x{before.Height} → {now.Width}x{now.Height}, 세션을 다시 엽니다");
             StopSession();
         }
         Apply();

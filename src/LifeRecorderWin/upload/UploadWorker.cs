@@ -34,6 +34,8 @@ internal sealed class UploadWorker
         }
         catch (DriveAuth.NotLinkedException e)
         {
+            // 업로드는 실패하면 1분 뒤 다시 온다. 매번 남기면 로그가 그것만으로 찬다.
+            if (RecorderState.Current.DriveLinked) Log.Warn("업로드 중단 — " + e.Message);
             RecorderState.Update(s => s with { DriveLinked = false, LastUploadError = e.Message });
             return false;
         }

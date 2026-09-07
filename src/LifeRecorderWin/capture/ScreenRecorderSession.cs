@@ -29,8 +29,12 @@ internal sealed class ScreenRecorderSession : IDisposable
     private readonly List<string> _stderrTail = new();
 
     public DateTime StartedAt { get; private set; }
+
+    /// <summary>실제로 잡고 있는 가상 데스크톱 영역. 모니터 구성이 바뀌었는지 판단하는 기준이다.</summary>
+    public Rectangle CaptureRect { get; private set; }
+
+    /// <summary>파일에 들어가는 프레임 크기. 축소했다면 <see cref="CaptureRect"/> 보다 작다.</summary>
     public string CaptureSize { get; private set; } = "";
-    public bool IsRunning => _proc is { HasExited: false };
 
     /// <summary>
     /// 시작한다. 실패하면 예외 대신 false 를 돌려주고 이유를 <paramref name="error"/> 에 담는다.
@@ -86,13 +90,17 @@ internal sealed class ScreenRecorderSession : IDisposable
                 _proc = p;
                 _stopping = false;
                 StartedAt = DateTime.Now;
-                CaptureSize = $"{rect.Width}x{rect.Height}";
+                CaptureRect = rect;
+                // 파일에 실제로 들어가는 크기를 들고 있는다. 잡는 크기는 이보다 크다.
+                var (w, h) = OutputSize(rect);
+                CaptureSize = $"{w}x{h}";
             }
 
             // 닫힌 세그먼트를 주기적으로 대기열로 옮긴다.
             _sweep = new System.Threading.Timer(_ => Sweep(), null, SweepPeriod, SweepPeriod);
 
-            Log.Info($"화면 녹화 시작 {CaptureSize} @{Config.ScreenFps}fps, 상한 {Bitrate(rect) / 1000}kbps");
+            Log.Info($"화면 녹화 시작 {rect.Width}x{rect.Height} → {CaptureSize} "
+                     + $"@{Config.ScreenFps}fps, 상한 {Bitrate(rect) / 1000}kbps");
             return true;
         }
         catch (Exception e)
@@ -168,11 +176,21 @@ internal sealed class ScreenRecorderSession : IDisposable
         return new Rectangle(v.Left, v.Top, v.Width - (v.Width % 2), v.Height - (v.Height % 2));
     }
 
+    /// <summary>
+    /// 파일에 실제로 들어가는 프레임 크기. yuv420p 라 가로·세로 모두 짝수여야 한다.
+    /// </summary>
+    private static (int w, int h) OutputSize(Rectangle rect)
+    {
+        if (Math.Abs(Config.ScreenScale - 1.0) < 0.001) return (rect.Width, rect.Height);
+        var w = Math.Max(16, (int)(rect.Width * Config.ScreenScale) / 2 * 2);
+        var h = Math.Max(16, (int)(rect.Height * Config.ScreenScale) / 2 * 2);
+        return (w, h);
+    }
+
     private static int Bitrate(Rectangle rect)
     {
-        var scaled = Config.ScreenScale;
-        var pixels = rect.Width * scaled * rect.Height * scaled;
-        var raw = pixels * Config.ScreenFps * Config.ScreenBitsPerPixelPerFrame;
+        var (w, h) = OutputSize(rect);
+        var raw = (double)w * h * Config.ScreenFps * Config.ScreenBitsPerPixelPerFrame;
         return (int)Math.Clamp(raw, Config.ScreenMinBitrate, Config.ScreenMaxBitrate);
     }
 
@@ -198,8 +216,7 @@ internal sealed class ScreenRecorderSession : IDisposable
 
         if (Math.Abs(Config.ScreenScale - 1.0) > 0.001)
         {
-            var w = (int)(rect.Width * Config.ScreenScale) / 2 * 2;
-            var h = (int)(rect.Height * Config.ScreenScale) / 2 * 2;
+            var (w, h) = OutputSize(rect);
             a.AddRange(new[] { "-vf", $"scale={w}:{h}:flags=bicubic" });
         }
 
