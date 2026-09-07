@@ -13,18 +13,42 @@ internal static class AutoStart
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "LifeRecorder";
 
-    public static bool IsEnabled()
+    public static bool IsEnabled() => RegisteredPath() != null;
+
+    /// <summary>등록돼 있는 실행 파일 경로. 없으면 null.</summary>
+    private static string? RegisteredPath()
     {
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKey);
-            return key?.GetValue(ValueName) is string;
+            return key?.GetValue(ValueName) as string;
         }
         catch (Exception e)
         {
             Log.Warn("자동 시작 상태 확인 실패: " + e.Message);
-            return false;
+            return null;
         }
+    }
+
+    /// <summary>
+    /// 자동 시작이 켜져 있는데 등록된 경로가 지금 실행 파일과 다르면 고쳐 놓는다.
+    ///
+    /// 파일 하나짜리 exe 라서 받은 자리에서 한 번 켜 보고 나중에 다른 폴더로 옮기기 쉽다.
+    /// 그대로 두면 다음 로그인 때 없는 경로를 실행하려 들어 조용히 안 뜬다.
+    /// </summary>
+    public static void RefreshPathIfMoved()
+    {
+        var registered = RegisteredPath();
+        if (registered == null) return;
+
+        var exe = System.Environment.ProcessPath;
+        if (exe == null) return;
+
+        var want = "\"" + exe + "\"";
+        if (string.Equals(registered, want, StringComparison.OrdinalIgnoreCase)) return;
+
+        Log.Info($"자동 시작 경로를 고칩니다: {registered} → {want}");
+        Set(true);
     }
 
     public static void Set(bool enabled)

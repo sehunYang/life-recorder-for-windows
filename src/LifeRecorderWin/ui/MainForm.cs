@@ -206,9 +206,18 @@ internal sealed class MainForm : Form
             }
         }
 
+        var firstTime = before.Length == 0;
         Prefs.Update(p => p.DeviceName = clean);
         _device.Text = clean;
         Log.Info("컴퓨터 이름: " + clean);
+
+        // 이름을 정했다 = 설정을 마쳤다. 이때 자동 시작을 실제로 걸어 준다.
+        // 첫 실행만으로 시작 프로그램에 등록되지 않게 여기까지 미뤄 둔 것이다.
+        if (firstTime && Prefs.Current.AutoStart && !AutoStart.IsEnabled())
+        {
+            AutoStart.Set(true);
+            _autoStart.Checked = AutoStart.IsEnabled();
+        }
         _recording.Reapply();
         Render(RecorderState.Current);
     }

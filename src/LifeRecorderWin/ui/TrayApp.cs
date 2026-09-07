@@ -48,8 +48,14 @@ internal sealed class TrayApp : ApplicationContext
 
         RecorderState.Changed += OnStateChanged;
 
-        // 설정에 적힌 자동 시작 값을 실제 레지스트리와 맞춘다 (사용자가 밖에서 지웠을 수 있다).
-        if (Prefs.Current.AutoStart != AutoStart.IsEnabled()) AutoStart.Set(Prefs.Current.AutoStart);
+        // 자동 시작은 **설정을 마친 뒤에만** 레지스트리에 쓴다.
+        // 그냥 받아서 한 번 열어 본 것만으로 시작 프로그램에 등록되면 곤란하고,
+        // 그때 박히는 경로도 받은 자리(다운로드 폴더 등)라 옮기면 깨진다.
+        if (Storage.HasDeviceName)
+        {
+            if (Prefs.Current.AutoStart != AutoStart.IsEnabled()) AutoStart.Set(Prefs.Current.AutoStart);
+            else AutoStart.RefreshPathIfMoved();
+        }
 
         // 지난 번 마지막 업로드 시각을 되살린다. 안 그러면 재시작 직후 "업로드 없음"으로 보인다.
         _driveLinked = _auth.IsLinked;

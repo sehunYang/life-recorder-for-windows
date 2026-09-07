@@ -216,6 +216,33 @@ USB로 옮겨도 똑같다. 파일이 하나뿐이라 빠뜨릴 것이 없다.
 > 라이브러리를 배포하는 곳이고, 최종 사용자가 받아 실행하는 exe를 올리는 자리가 아니다.
 > 릴리스가 맞다.
 
+### 5) 이 exe가 컴퓨터에 남기는 것
+
+**설치 프로그램이 아니라 프로그램 그 자체다.** 실행하면 그 자리에서 앱이 뜬다.
+`Program Files`에 복사되지 않고, 제거 프로그램도 등록되지 않는다. exe를 지우면 프로그램은 사라진다.
+
+다만 실행하면 다음 세 곳이 생긴다. 무엇을 하는 앱인지 생각하면 당연한 것들이지만 밝혀 둔다.
+
+| 자리 | 언제 | 무엇 |
+|---|---|---|
+| `%LOCALAPPDATA%\LifeRecorder\` | 처음 실행할 때 | 설정, 토큰, 아직 못 올린 파일, 로그, 꺼내 둔 ffmpeg |
+| `HKCU\...\CurrentVersion\Run` | **컴퓨터 이름을 정한 뒤** | 자동 시작 항목 하나. 체크를 끄면 지워진다 |
+| `%TEMP%\.net\LifeRecorder\` | 실행할 때마다 | .NET 이 압축된 exe를 푸는 자리. 캐시라 지워도 된다 |
+
+자동 시작은 **설정을 마친 뒤에만** 등록한다. 그냥 받아서 한 번 열어 본 것만으로는 아무것도 안 쓴다.
+등록된 뒤에 exe를 다른 폴더로 옮기면 다음 실행 때 경로를 알아서 고친다.
+
+**완전히 지우려면** 앱을 끝내고:
+
+```powershell
+Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name LifeRecorder -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\LifeRecorder"
+Remove-Item -Recurse -Force "$env:TEMP\.net\LifeRecorder" -ErrorAction SilentlyContinue
+Remove-Item LifeRecorder.exe
+```
+
+이미 Drive에 올라간 파일은 그대로 남는다.
+
 ---
 
 ## 여러 대에서 쓸 때 알아 둘 것
