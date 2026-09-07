@@ -27,6 +27,8 @@ internal sealed class RecordingService : IDisposable
         _power = new PowerWatcher();
         _power.PauseReasonChanged += OnPauseReasonChanged;
         _power.DisplayLayoutChanged += OnDisplayLayoutChanged;
+        // 어댑터를 꽂자마자 미뤄 둔 것이 올라가게. 안 그러면 최대 2분을 기다린다.
+        _power.PowerSourceChanged += () => _uploads.RequestNow();
     }
 
     /// <summary>앱이 뜰 때 한 번. 저장된 ON/OFF 상태를 그대로 이어받는다.</summary>

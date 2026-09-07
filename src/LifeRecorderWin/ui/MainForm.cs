@@ -27,7 +27,7 @@ internal sealed class MainForm : Form
     private readonly Button _deviceSave = new();
     private readonly CheckBox _autoStart = new();
     private readonly CheckBox _holdMetered = new();
-    private readonly CheckBox _saveBattery = new();
+    private readonly CheckBox _holdBattery = new();
     private readonly System.Windows.Forms.Timer _tick = new();
 
     public MainForm(RecordingService recording, UploadScheduler uploads, DriveAuth auth)
@@ -148,14 +148,14 @@ internal sealed class MainForm : Form
             _uploads.RequestNow();
         };
 
-        _saveBattery.Text = $"배터리로 돌 때 아끼기 (업로드 미룸 · {Config.BatteryStopPercent}% 아래면 녹화 멈춤)";
-        _saveBattery.Location = Px.P(20, 392);
-        _saveBattery.Size = Px.Z(420, 24);
-        _saveBattery.Checked = Prefs.Current.SaveOnBattery;
-        _saveBattery.CheckedChanged += (_, _) =>
+        // 미루는 것은 업로드뿐이다. 배터리로도 녹화는 계속한다.
+        _holdBattery.Text = "배터리로 돌 때는 업로드 미루기 (녹화는 계속)";
+        _holdBattery.Location = Px.P(20, 392);
+        _holdBattery.Size = Px.Z(420, 24);
+        _holdBattery.Checked = Prefs.Current.HoldUploadOnBattery;
+        _holdBattery.CheckedChanged += (_, _) =>
         {
-            Prefs.Update(p => p.SaveOnBattery = _saveBattery.Checked);
-            _recording.Reapply();
+            Prefs.Update(p => p.HoldUploadOnBattery = _holdBattery.Checked);
             _uploads.RequestNow();
         };
 
@@ -174,7 +174,7 @@ internal sealed class MainForm : Form
             _state, _screen, sep1, _pending, _drive, _error,
             _toggle, _upload, _link, openFolder,
             deviceLabel, _device, _deviceSave, deviceHint,
-            _autoStart, _holdMetered, _saveBattery, note,
+            _autoStart, _holdMetered, _holdBattery, note,
         });
     }
 

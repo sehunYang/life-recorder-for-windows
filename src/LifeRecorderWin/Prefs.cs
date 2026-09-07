@@ -26,10 +26,10 @@ internal sealed class Prefs
     public bool HoldUploadOnMetered { get; set; } = true;
 
     /// <summary>
-    /// 배터리로 돌 때 아낀다 — 업로드를 미루고, 잔량이 <see cref="Config.BatteryStopPercent"/> 아래면
-    /// 녹화도 멈춘다. 배터리가 없는 컴퓨터에서는 아무 일도 하지 않는다.
+    /// 배터리로 돌 때는 업로드를 미룬다. 녹화는 그대로 계속한다.
+    /// 배터리가 없는 컴퓨터에서는 아무 일도 하지 않는다.
     /// </summary>
-    public bool SaveOnBattery { get; set; } = true;
+    public bool HoldUploadOnBattery { get; set; } = true;
 
     /// <summary>Drive 폴더 ID 캐시. 매번 이름으로 찾지 않기 위한 것.</summary>
     public Dictionary<string, string> FolderIds { get; set; } = new();

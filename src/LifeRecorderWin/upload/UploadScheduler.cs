@@ -104,7 +104,7 @@ internal sealed class UploadScheduler : IDisposable
     private static string? HoldReason()
     {
         var prefs = Prefs.Current;
-        if (prefs.SaveOnBattery && PowerInfo.OnBattery)
+        if (prefs.HoldUploadOnBattery && PowerInfo.OnBattery)
         {
             var pct = PowerInfo.BatteryPercent;
             return "배터리로 도는 중" + (pct != null ? $" ({pct}%)" : "");
