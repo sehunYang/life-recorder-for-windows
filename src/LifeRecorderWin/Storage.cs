@@ -137,4 +137,52 @@ internal static class Storage
 
     /// <summary>수집 기록에 쓰는 날짜.</summary>
     public static string Today() => DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    // ── 기기 이름과 파일 이름 ────────────────────────────────────────────────
+    //
+    // 컴퓨터가 두 대 이상이면 이름이 겹친다. 특히 하루 한 개인 수집 기록은 **매일** 겹친다.
+    // 그래서 시각 뒤에 기기 이름을 붙인다. 시각이 앞에 있어야 이름순 정렬이 곧 시간순이다.
+    //
+    //   pcscreen_2026-09-08_13-00-00_home.mp4
+    //   pcindex_2026-09-08_home.jsonl
+
+    /// <summary>파일 이름에 넣을 수 있는 형태로 다듬는다. 영숫자와 하이픈만 남긴다.</summary>
+    public static string SanitizeDeviceName(string raw)
+    {
+        var chars = raw.Trim().ToLowerInvariant()
+            .Select(c => char.IsAsciiLetterOrDigit(c) ? c : '-')
+            .ToArray();
+        var s = new string(chars).Trim('-');
+        while (s.Contains("--", StringComparison.Ordinal)) s = s.Replace("--", "-");
+        return s.Length > Config.DeviceNameMaxLength ? s[..Config.DeviceNameMaxLength].Trim('-') : s;
+    }
+
+    /// <summary>정해져 있으면 기기 이름, 아니면 빈 문자열.</summary>
+    public static string DeviceName => SanitizeDeviceName(Prefs.Current.DeviceName);
+
+    public static bool HasDeviceName => DeviceName.Length > 0;
+
+    /// <summary>ffmpeg 의 <c>-strftime</c> 에 넘길 출력 패턴.</summary>
+    public static string ScreenPattern() =>
+        Path.Combine(WorkDir, $"{Config.ScreenPrefix}%Y-%m-%d_%H-%M-%S_{DeviceName}.mp4");
+
+    /// <summary>확정된 하루치 수집 기록 (업로드 대상).</summary>
+    public static string IndexName(string day) => $"{Config.IndexPrefix}{day}_{DeviceName}.jsonl";
+
+    /// <summary>오늘치 수집 기록 (계속 이어 쓰는 중).</summary>
+    public static string RawIndexName(string day) => $"{Config.RawIndexPrefix}{day}_{DeviceName}.jsonl{Part}";
+
+    /// <summary>
+    /// <c>rawpcindex_2026-09-08_home.jsonl.part</c> 에서 날짜만 꺼낸다. 형식이 아니면 null.
+    /// 기기 이름을 바꾼 뒤에도 예전 이름의 파일을 확정할 수 있어야 해서 이름은 보지 않는다.
+    /// </summary>
+    public static string? DayFromRawIndexName(string fileName)
+    {
+        if (!fileName.StartsWith(Config.RawIndexPrefix, StringComparison.Ordinal)) return null;
+        var rest = fileName[Config.RawIndexPrefix.Length..];
+        if (rest.Length < 10) return null;
+        var day = rest[..10];
+        return DateTime.TryParseExact(day, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out _) ? day : null;
+    }
 }

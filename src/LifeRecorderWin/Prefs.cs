@@ -12,6 +12,13 @@ internal sealed class Prefs
     /// <summary>사용자가 ON 을 눌러 둔 상태인가. 재부팅·재시작 뒤 이 값을 보고 되살린다.</summary>
     public bool RecordingEnabled { get; set; }
 
+    /// <summary>
+    /// 이 컴퓨터를 가리키는 짧은 이름 (<c>home</c>, <c>school</c>). 올라가는 파일 이름 끝에 붙는다.
+    /// 정해지기 전에는 녹화를 시작하지 않는다 — 두 대가 같은 이름으로 올리면
+    /// <c>pcindex_&lt;날짜&gt;.jsonl</c> 이 매일 충돌한다.
+    /// </summary>
+    public string DeviceName { get; set; } = "";
+
     /// <summary>Windows 로그인 시 자동 시작.</summary>
     public bool AutoStart { get; set; } = true;
 

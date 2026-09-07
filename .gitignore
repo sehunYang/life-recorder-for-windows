@@ -10,3 +10,7 @@ tools/ffmpeg/
 # 로컬 개발 설정
 .vs/
 .idea/
+
+# 배포 꾸러미
+dist/
+*.zip

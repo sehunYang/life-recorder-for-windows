@@ -23,6 +23,8 @@ internal sealed class MainForm : Form
     private readonly Button _toggle = new();
     private readonly Button _upload = new();
     private readonly Button _link = new();
+    private readonly TextBox _device = new();
+    private readonly Button _deviceSave = new();
     private readonly CheckBox _autoStart = new();
     private readonly System.Windows.Forms.Timer _tick = new();
 
@@ -34,9 +36,10 @@ internal sealed class MainForm : Form
 
         Text = "Life Recorder";
         FormBorderStyle = FormBorderStyle.FixedSingle;
+        AutoScaleMode = AutoScaleMode.None;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(460, 396);
+        ClientSize = Px.Z(460, 444);
         Font = new Font("Segoe UI", 9f);
         ShowInTaskbar = true;
 
@@ -53,54 +56,78 @@ internal sealed class MainForm : Form
     private void BuildLayout()
     {
         _state.Font = new Font("Segoe UI", 15f, FontStyle.Bold);
-        _state.Location = new Point(20, 18);
-        _state.Size = new Size(420, 32);
+        _state.Location = Px.P(20, 18);
+        _state.Size = Px.Z(420, 32);
 
-        _screen.Location = new Point(20, 54);
-        _screen.Size = new Size(420, 20);
+        _screen.Location = Px.P(20, 54);
+        _screen.Size = Px.Z(420, 20);
         _screen.ForeColor = Color.FromArgb(90, 90, 90);
 
-        var sep1 = new Label { BorderStyle = BorderStyle.Fixed3D, Location = new Point(20, 86), Size = new Size(420, 2) };
+        var sep1 = new Label { BorderStyle = BorderStyle.Fixed3D, Location = Px.P(20, 86), Size = Px.Z(420, 2) };
 
-        _pending.Location = new Point(20, 100);
-        _pending.Size = new Size(420, 20);
+        _pending.Location = Px.P(20, 100);
+        _pending.Size = Px.Z(420, 20);
 
-        _drive.Location = new Point(20, 124);
-        _drive.Size = new Size(420, 20);
+        _drive.Location = Px.P(20, 124);
+        _drive.Size = Px.Z(420, 20);
 
-        _error.Location = new Point(20, 148);
-        _error.Size = new Size(420, 36);
+        _error.Location = Px.P(20, 148);
+        _error.Size = Px.Z(420, 36);
         _error.ForeColor = Color.FromArgb(180, 40, 40);
 
-        _toggle.Location = new Point(20, 196);
-        _toggle.Size = new Size(200, 44);
+        _toggle.Location = Px.P(20, 196);
+        _toggle.Size = Px.Z(200, 44);
         _toggle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
         _toggle.Click += (_, _) => _recording.SetEnabled(!Prefs.Current.RecordingEnabled);
 
         _upload.Text = "지금 업로드";
-        _upload.Location = new Point(240, 196);
-        _upload.Size = new Size(200, 44);
+        _upload.Location = Px.P(240, 196);
+        _upload.Size = Px.Z(200, 44);
         _upload.Click += (_, _) =>
         {
             _uploads.RequestNow();
             RecorderState.Update(s => s with { LastUploadError = null });
         };
 
-        _link.Location = new Point(20, 252);
-        _link.Size = new Size(200, 34);
+        _link.Location = Px.P(20, 252);
+        _link.Size = Px.Z(200, 34);
         _link.Click += async (_, _) => await ToggleLinkAsync();
 
         var openFolder = new Button
         {
             Text = "로컬 폴더 열기",
-            Location = new Point(240, 252),
-            Size = new Size(200, 34),
+            Location = Px.P(240, 252),
+            Size = Px.Z(200, 34),
         };
         openFolder.Click += (_, _) => LinkDialog.OpenUrl(Storage.BaseDir);
 
+        var deviceLabel = new Label
+        {
+            Text = "컴퓨터 이름",
+            Location = Px.P(20, 304),
+            Size = Px.Z(88, 22),
+        };
+        _device.Location = Px.P(110, 301);
+        _device.Size = Px.Z(120, 24);
+        _device.MaxLength = Config.DeviceNameMaxLength;
+        _device.Text = Prefs.Current.DeviceName;
+
+        _deviceSave.Text = "저장";
+        _deviceSave.Location = Px.P(238, 300);
+        _deviceSave.Size = Px.Z(70, 26);
+        _deviceSave.Click += (_, _) => SaveDeviceName();
+
+        var deviceHint = new Label
+        {
+            Text = "예: home, school",
+            Location = Px.P(316, 304),
+            Size = Px.Z(124, 22),
+            ForeColor = Color.FromArgb(110, 110, 110),
+        };
+
         _autoStart.Text = "Windows 시작할 때 자동으로 실행";
-        _autoStart.Location = new Point(20, 300);
-        _autoStart.Size = new Size(420, 24);
+        _autoStart.Location = Px.P(20, 342);
+        _autoStart.Size = Px.Z(420, 24);
         _autoStart.Checked = AutoStart.IsEnabled();
         _autoStart.CheckedChanged += (_, _) =>
         {
@@ -110,18 +137,55 @@ internal sealed class MainForm : Form
 
         var note = new Label
         {
-            Text = "잠금·모니터 꺼짐·절전 동안에는 담을 화면이 없어 쉬었다가, 풀리면 바로 다시 시작합니다.\n"
+            Text = "컴퓨터 이름은 올라가는 파일 이름 끝에 붙어 어느 컴퓨터 화면인지 가릅니다.\n"
+                   + "잠금·모니터 꺼짐·절전 동안에는 쉬었다가, 풀리면 바로 다시 시작합니다.\n"
                    + "업로드가 끝난 파일은 로컬에서 지웁니다. 창을 닫아도 트레이에 남습니다.",
-            Location = new Point(20, 330),
-            Size = new Size(420, 50),
+            Location = Px.P(20, 372),
+            Size = Px.Z(420, 56),
             ForeColor = Color.FromArgb(110, 110, 110),
         };
 
         Controls.AddRange(new Control[]
         {
             _state, _screen, sep1, _pending, _drive, _error,
-            _toggle, _upload, _link, openFolder, _autoStart, note,
+            _toggle, _upload, _link, openFolder,
+            deviceLabel, _device, _deviceSave, deviceHint, _autoStart, note,
         });
+    }
+
+    /// <summary>
+    /// 기기 이름을 저장한다. 이 이름이 올라가는 파일 이름 끝에 붙어 컴퓨터를 가른다.
+    /// 이미 이 이름으로 올린 파일이 있는데 바꾸면 한 컴퓨터가 두 이름으로 보이므로 한 번 확인을 받는다.
+    /// </summary>
+    private void SaveDeviceName()
+    {
+        var clean = Storage.SanitizeDeviceName(_device.Text);
+        if (clean.Length == 0)
+        {
+            MessageBox.Show(this, "영문·숫자로 된 짧은 이름을 넣어 주세요. 예: home, school", "Life Recorder");
+            return;
+        }
+
+        var before = Storage.DeviceName;
+        if (before.Length > 0 && before != clean)
+        {
+            var confirm = MessageBox.Show(this,
+                $"이름을 \"{before}\" 에서 \"{clean}\" 으로 바꿉니다.\n\n"
+                + "이미 올라간 파일은 예전 이름 그대로 남아서, 나중에 데이터를 볼 때\n"
+                + "이 컴퓨터가 두 이름으로 보이게 됩니다. 계속할까요?",
+                "Life Recorder", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+            if (confirm != DialogResult.OK)
+            {
+                _device.Text = before;
+                return;
+            }
+        }
+
+        Prefs.Update(p => p.DeviceName = clean);
+        _device.Text = clean;
+        Log.Info("컴퓨터 이름: " + clean);
+        _recording.Reapply();
+        Render(RecorderState.Current);
     }
 
     private async Task ToggleLinkAsync()
@@ -185,6 +249,11 @@ internal sealed class MainForm : Form
         {
             _state.Text = "꺼짐";
             _state.ForeColor = Color.FromArgb(110, 110, 110);
+        }
+        else if (!Storage.HasDeviceName)
+        {
+            _state.Text = "컴퓨터 이름을 정해 주세요";
+            _state.ForeColor = Color.FromArgb(190, 130, 20);
         }
         else if (s.ScreenPausedReason != null)
         {

@@ -58,6 +58,13 @@ internal sealed class RecordingService : IDisposable
         Apply();
     }
 
+    /// <summary>설정이 바뀌어 지금 상태를 다시 맞춰야 할 때 (기기 이름을 정한 직후 등).</summary>
+    public void Reapply()
+    {
+        RecorderState.Update(s => s with { ScreenStoppedReason = null });
+        Apply();
+    }
+
     /// <summary>지금 있어야 할 상태로 맞춘다. 어느 스레드에서 불러도 된다.</summary>
     private void Apply()
     {
@@ -68,6 +75,17 @@ internal sealed class RecordingService : IDisposable
             var shouldRun = enabled && pause == null;
 
             RecorderState.Update(s => s with { ScreenPausedReason = enabled ? pause : null });
+
+            if (shouldRun && !Storage.HasDeviceName)
+            {
+                // 이름이 없으면 두 대째부터 파일 이름이 겹친다. 재시도로 두드리지 말고 그냥 기다린다.
+                RecorderState.Update(s => s with
+                {
+                    ScreenRecording = false,
+                    ScreenStoppedReason = "이 컴퓨터의 이름을 먼저 정해 주세요 (예: home, school)",
+                });
+                return;
+            }
 
             if (shouldRun && _session == null) StartSession();
             else if (!shouldRun && _session != null) StopSession();

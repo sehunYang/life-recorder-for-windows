@@ -52,11 +52,16 @@ $v = [System.Windows.Forms.SystemInformation]::VirtualScreen
 
 ## 2. 처음 실행
 
-`LifeRecorder.exe` 실행 → 트레이에 회색 점.
+`LifeRecorder.exe` 실행 → 창이 뜨고 트레이에 회색 점.
 
-1. **Google 계정 연결** → 클라이언트 ID / 보안 비밀 입력 → 브라우저에서 동의
-2. 상태창에 `Drive 연결됨` 이 뜨는지
-3. 로그에 `Google 계정 연결 완료`
+1. **컴퓨터 이름**을 넣고 저장 (`home`, `school` 처럼 짧게)
+   - 넣기 전에는 상태가 `컴퓨터 이름을 정해 주세요` 이고 **녹화가 시작되지 않아야 한다**
+   - 로그에 `컴퓨터 이름: home`
+   - 컴퓨터가 두 대 이상이면 **서로 다르게** 정할 것. 같으면 `pcindex_<날짜>.jsonl` 이 매일 충돌한다
+2. **Google 계정 연결** → 클라이언트 ID / 보안 비밀 입력 → 브라우저에서 동의
+   - 두 컴퓨터가 **같은** 클라이언트 ID·보안 비밀을 써도 된다. 연결만 각자 한 번씩 한다
+3. 상태창에 `Drive 연결됨` 이 뜨는지
+4. 로그에 `Google 계정 연결 완료`
 
 안 되면 자주 걸리는 것:
 
@@ -81,9 +86,10 @@ Get-ChildItem "$env:LOCALAPPDATA\LifeRecorder\work"
 Get-ChildItem "$env:LOCALAPPDATA\LifeRecorder\queue"
 ```
 
-- 트레이가 **빨강**, 상태창이 `기록 중`, `3840x1448 · 2fps`
-- `work\` 에 `pcscreen_<시각>.mp4` 하나가 생기고 **크기가 계속 는다**
-- 로그: `화면 녹화 시작 3840x1448 @2fps, 상한 4022kbps`
+- 트레이가 **빨강**, 상태창이 `기록 중`, `2880x1086 · 2fps`
+- `work\` 에 `pcscreen_<시각>_<컴퓨터이름>.mp4` 하나가 생기고 **크기가 계속 는다**
+- 로그: `화면 녹화 시작 [home] 5760x2172 → 2880x1086 @2fps, 상한 2262kbps (화면 배율 150%)`
+  - 앞이 잡는 크기(물리 픽셀), 뒤가 파일에 들어가는 크기다. 화면 배율에 따라 자동으로 정해진다
 
 **정각 분할**은 다음 정시까지 기다려야 확인된다. 정각이 지나면:
 
@@ -102,7 +108,7 @@ Get-ChildItem "$env:LOCALAPPDATA\LifeRecorder\queue"
 | 세션 잠금 | `Win`+`L` → 다시 로그인 | 트레이 노랑 → 빨강. 로그에 `세션 상태: SessionLock` / `SessionUnlock` |
 | 모니터 꺼짐 | 전원 설정에서 화면 끄기를 1분으로 두고 방치 | 로그에 `모니터 전원: 꺼짐` → `켜짐` |
 | 절전 | 절전 진입 후 복귀 | 로그에 `전원 상태: Suspend` / `Resume` |
-| 모니터 구성 | 모니터 케이블을 빼거나 `Win`+`P` 로 표시 방식 변경 | 로그에 `프레임 크기 변경 ... 세션을 다시 엽니다` |
+| 모니터 구성 | 모니터 케이블을 빼거나 `Win`+`P` 로 표시 방식 변경 | 로그에 `잡는 영역 변경 ... 세션을 다시 엽니다` |
 
 쉬는 동안에는 `work\` 파일이 늘지 않고, 풀리면 **새 세그먼트**로 다시 시작한다.
 그 사이는 파일이 없는 공백으로 남는다 (의도한 동작).
@@ -113,7 +119,7 @@ Get-ChildItem "$env:LOCALAPPDATA\LifeRecorder\queue"
 
 **지금 업로드** 를 누른다.
 
-- Drive의 `LifeRecorder/screen` 에 `pcscreen_...mp4` 가 뜬다.
+- Drive의 `LifeRecorder/screen` 에 `pcscreen_..._<컴퓨터이름>.mp4` 가 뜬다.
   **폴더가 새로 생기면 안 된다.** 루트에 `LifeRecorder` 가 두 개면 스코프 문제다(README 참고)
 - 올라간 파일은 `queue\` 에서 사라진다 (크기·MD5 검증 후 삭제)
 - 로그: `업로드 pcscreen_... 0/12345678` → `올림 pcscreen_... → 1AbC...`
@@ -121,7 +127,7 @@ Get-ChildItem "$env:LOCALAPPDATA\LifeRecorder\queue"
 **중간에 끊어도 이어 올라가는지:** 큰 파일이 올라가는 동안 랜선을 뽑았다 꽂는다.
 다음 시도에서 `업로드 ... <이어받는 offset>/<전체>` 로 0이 아닌 지점부터 시작해야 한다.
 
-**수집 기록:** 날이 바뀐 뒤 `queue\` 에 `pcindex_<어제>.jsonl` 이 생기고 업로드된다.
+**수집 기록:** 날이 바뀐 뒤 `queue\` 에 `pcindex_<어제>_<컴퓨터이름>.jsonl` 이 생기고 업로드된다.
 Drive의 `index/` 에서 안드로이드의 `index_...` 와 나란히 보이면 정상이다.
 
 ---
@@ -145,9 +151,9 @@ Drive의 `index/` 에서 안드로이드의 `index_...` 와 나란히 보이면 
 
 너무 크면 `Config.cs` 에서:
 
-- `ScreenScale` 을 `0.75` 로 (해상도를 줄인다 — 글씨 판독이 나빠진다)
-- `ScreenBitsPerPixelPerFrame` 을 낮춘다 (움직일 때만 뭉개진다)
-- `ScreenCrf` 를 28~30으로 올린다 (전반적으로 뭉개진다)
+- `ScreenTargetLogicalScale` 을 `0.5` 로 (해상도를 줄인다 — 글씨 판독이 나빠진다)
+- `ScreenCrf` 를 28~30으로 올린다 (움직임이 많은 구간에서 뭉개진다)
+- `ScreenBitsPerPixelPerFrame` 을 낮춘다 (상한만 내린다. 평소 용량은 CRF 가 정한다)
 
 ---
 

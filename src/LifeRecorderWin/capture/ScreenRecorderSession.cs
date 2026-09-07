@@ -49,6 +49,13 @@ internal sealed class ScreenRecorderSession : IDisposable
             return false;
         }
 
+        if (!Storage.HasDeviceName)
+        {
+            // 이름 없이 올리면 두 대째부터 파일 이름이 겹친다. 정해질 때까지 시작하지 않는다.
+            error = "이 컴퓨터의 이름을 먼저 정해 주세요 (예: home, school)";
+            return false;
+        }
+
         // 시작 전에 지난 번에 남은 것을 정리한다. 이 시점의 work\ 는 전부 죽은 파일이다.
         var (promoted, dropped) = Storage.RecoverWorkDir();
         if (promoted > 0 || dropped > 0)
@@ -99,8 +106,9 @@ internal sealed class ScreenRecorderSession : IDisposable
             // 닫힌 세그먼트를 주기적으로 대기열로 옮긴다.
             _sweep = new System.Threading.Timer(_ => Sweep(), null, SweepPeriod, SweepPeriod);
 
-            Log.Info($"화면 녹화 시작 {rect.Width}x{rect.Height} → {CaptureSize} "
-                     + $"@{Config.ScreenFps}fps, 상한 {Bitrate(rect) / 1000}kbps");
+            Log.Info($"화면 녹화 시작 [{Storage.DeviceName}] {rect.Width}x{rect.Height} → {CaptureSize} "
+                     + $"@{Config.ScreenFps}fps, 상한 {Bitrate(rect) / 1000}kbps "
+                     + $"(화면 배율 {Dpi.SystemScalePercent()})");
             return true;
         }
         catch (Exception e)
@@ -181,9 +189,10 @@ internal sealed class ScreenRecorderSession : IDisposable
     /// </summary>
     private static (int w, int h) OutputSize(Rectangle rect)
     {
-        if (Math.Abs(Config.ScreenScale - 1.0) < 0.001) return (rect.Width, rect.Height);
-        var w = Math.Max(16, (int)(rect.Width * Config.ScreenScale) / 2 * 2);
-        var h = Math.Max(16, (int)(rect.Height * Config.ScreenScale) / 2 * 2);
+        var scale = Dpi.EffectiveScale;
+        if (Math.Abs(scale - 1.0) < 0.001) return (rect.Width, rect.Height);
+        var w = Math.Max(16, (int)(rect.Width * scale) / 2 * 2);
+        var h = Math.Max(16, (int)(rect.Height * scale) / 2 * 2);
         return (w, h);
     }
 
@@ -197,7 +206,7 @@ internal sealed class ScreenRecorderSession : IDisposable
     private static string BuildArgs(Rectangle rect)
     {
         var bitrate = Bitrate(rect);
-        var pattern = Path.Combine(Storage.WorkDir, Config.ScreenPrefix + "%Y-%m-%d_%H-%M-%S.mp4");
+        var pattern = Storage.ScreenPattern();
         var inv = CultureInfo.InvariantCulture;
 
         var a = new List<string>
@@ -214,7 +223,7 @@ internal sealed class ScreenRecorderSession : IDisposable
             "-i", "desktop",
         };
 
-        if (Math.Abs(Config.ScreenScale - 1.0) > 0.001)
+        if (Math.Abs(Dpi.EffectiveScale - 1.0) > 0.001)
         {
             var (w, h) = OutputSize(rect);
             a.AddRange(new[] { "-vf", $"scale={w}:{h}:flags=bicubic" });

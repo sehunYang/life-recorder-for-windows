@@ -63,7 +63,8 @@ internal sealed class TrayApp : ApplicationContext
         _recording.Restore();
         OnStateChanged(RecorderState.Current);
 
-        if (!startHidden) ShowForm();
+        // 이름이 없으면 아직 녹화를 시작할 수 없다. 자동 시작으로 떴더라도 창을 띄워 알린다.
+        if (!startHidden || !Storage.HasDeviceName) ShowForm();
     }
 
     private void ShowForm()
@@ -83,6 +84,7 @@ internal sealed class TrayApp : ApplicationContext
             _toggleItem.Text = s.RecordingEnabled ? "기록 중지 (OFF)" : "기록 시작 (ON)";
 
             var line = !s.RecordingEnabled ? "꺼짐"
+                : !Storage.HasDeviceName ? "컴퓨터 이름 필요"
                 : s.ScreenPausedReason != null ? "쉬는 중 — " + s.ScreenPausedReason
                 : s.ScreenRecording ? "기록 중"
                 : "다시 시작하는 중";

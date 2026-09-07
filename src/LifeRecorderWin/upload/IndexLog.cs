@@ -38,16 +38,15 @@ internal static class IndexLog
             ["md5"] = md5,
             // 안드로이드는 원본 식별자(call:/camera:)를 넣는 자리다. PC 는 직접 만든 파일뿐이라 없다.
             ["src"] = null,
-            // 같은 폴더에 두 기기 기록이 섞이므로 어느 쪽이 남긴 줄인지 밝혀 둔다.
-            ["device"] = "pc",
+            // 같은 폴더에 여러 기기 기록이 섞이므로 어느 쪽이 남긴 줄인지 밝혀 둔다.
+            ["device"] = Storage.DeviceName,
         };
 
         lock (Lock)
         {
             try
             {
-                var path = Path.Combine(Storage.IndexDir,
-                    Config.RawIndexPrefix + Storage.Today() + Ext + Storage.Part);
+                var path = Path.Combine(Storage.IndexDir, Storage.RawIndexName(Storage.Today()));
                 File.AppendAllText(path, JsonSerializer.Serialize(record) + "\n", Encoding.UTF8);
             }
             catch (Exception e)
@@ -66,20 +65,22 @@ internal static class IndexLog
         lock (Lock)
         {
             var today = Storage.Today();
-            var rawPrefix = Config.RawIndexPrefix;
             var count = 0;
 
-            foreach (var f in new DirectoryInfo(Storage.IndexDir).GetFiles(rawPrefix + "*" + Ext + Storage.Part))
+            foreach (var f in new DirectoryInfo(Storage.IndexDir)
+                         .GetFiles(Config.RawIndexPrefix + "*" + Ext + Storage.Part))
             {
-                var day = f.Name[rawPrefix.Length..^(Ext.Length + Storage.Part.Length)];
-                if (day.Length != 10 || string.CompareOrdinal(day, today) >= 0) continue;
+                var day = Storage.DayFromRawIndexName(f.Name);
+                if (day == null || string.CompareOrdinal(day, today) >= 0) continue;
                 if (f.Length == 0)
                 {
                     TryDelete(f);
                     continue;
                 }
 
-                var dest = Path.Combine(Storage.QueueDir, Config.IndexPrefix + day + Ext);
+                // 기기 이름을 바꿨다면 예전 이름으로 쌓인 오늘치도 지금 이름으로 확정된다.
+                // 어차피 같은 컴퓨터가 남긴 것이고, 이름이 둘로 갈리면 파일만 늘어난다.
+                var dest = Path.Combine(Storage.QueueDir, Storage.IndexName(day));
                 try
                 {
                     if (File.Exists(dest))

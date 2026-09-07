@@ -23,10 +23,11 @@ internal sealed class LinkDialog : Form
     {
         Text = "Google 계정 연결";
         FormBorderStyle = FormBorderStyle.FixedDialog;
+        AutoScaleMode = AutoScaleMode.None;
         MaximizeBox = false;
         MinimizeBox = false;
         StartPosition = FormStartPosition.CenterParent;
-        ClientSize = new Size(520, 250);
+        ClientSize = Px.Z(520, 250);
         Font = new Font("Segoe UI", 9f);
 
         var help = new Label
@@ -34,26 +35,26 @@ internal sealed class LinkDialog : Form
             Text = "Google Cloud Console → API 및 서비스 → 사용자 인증 정보에서\n"
                    + "\"OAuth 클라이언트 ID\" 를 만들되 애플리케이션 유형을 **데스크톱 앱** 으로 고릅니다.\n"
                    + "Drive API 가 켜져 있어야 하고, 앱이 테스트 모드면 본인 계정을 테스트 사용자로 넣습니다.",
-            Location = new Point(16, 14),
-            Size = new Size(490, 62),
+            Location = Px.P(16, 14),
+            Size = Px.Z(490, 62),
         };
 
         var link = new LinkLabel
         {
             Text = "Cloud Console 열기",
-            Location = new Point(16, 78),
+            Location = Px.P(16, 78),
             AutoSize = true,
         };
         link.LinkClicked += (_, _) => OpenUrl("https://console.cloud.google.com/apis/credentials");
 
-        var idLabel = new Label { Text = "클라이언트 ID", Location = new Point(16, 110), Size = new Size(100, 22) };
-        _id.Location = new Point(120, 107);
-        _id.Size = new Size(386, 24);
+        var idLabel = new Label { Text = "클라이언트 ID", Location = Px.P(16, 110), Size = Px.Z(100, 22) };
+        _id.Location = Px.P(120, 107);
+        _id.Size = Px.Z(386, 24);
         _id.Text = currentId ?? "";
 
-        var secretLabel = new Label { Text = "클라이언트 보안 비밀", Location = new Point(16, 144), Size = new Size(100, 34) };
-        _secret.Location = new Point(120, 141);
-        _secret.Size = new Size(386, 24);
+        var secretLabel = new Label { Text = "클라이언트 보안 비밀", Location = Px.P(16, 144), Size = Px.Z(100, 34) };
+        _secret.Location = Px.P(120, 141);
+        _secret.Size = Px.Z(386, 24);
         _secret.Text = currentSecret ?? "";
         _secret.UseSystemPasswordChar = true;
 
@@ -61,15 +62,15 @@ internal sealed class LinkDialog : Form
         {
             Text = "연결",
             DialogResult = DialogResult.OK,
-            Location = new Point(316, 196),
-            Size = new Size(90, 30),
+            Location = Px.P(316, 196),
+            Size = Px.Z(90, 30),
         };
         var cancel = new Button
         {
             Text = "취소",
             DialogResult = DialogResult.Cancel,
-            Location = new Point(416, 196),
-            Size = new Size(90, 30),
+            Location = Px.P(416, 196),
+            Size = Px.Z(90, 30),
         };
 
         ok.Click += (_, _) =>
