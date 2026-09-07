@@ -52,6 +52,7 @@ work\   pcscreen_2026-09-07_13-00-00.mp4   ffmpeg이 지금 쓰는 중
 queue\  pcscreen_2026-09-07_12-00-00.mp4   완성돼 업로드를 기다리는 것
 index\  rawpcindex_2026-09-07.jsonl.part   오늘치 수집 기록
 logs\   liferecorder-2026-09-07.log        2주치
+ffmpeg\ ffmpeg.exe                         exe 안에서 꺼내 둔 것
 ```
 
 업로더는 `queue\`만 본다. 쓰는 중인 파일이 올라갈 일이 없다.
@@ -89,15 +90,24 @@ cd life-recorder-for-windows
 dotnet build src\LifeRecorderWin\LifeRecorderWin.csproj -c Release
 ```
 
-단일 exe로 묶으려면:
+배포용 **파일 하나짜리** exe로 묶으려면:
 
 ```powershell
-dotnet publish src\LifeRecorderWin\LifeRecorderWin.csproj -c Release -p:PublishSingleFile=true -o dist
-Copy-Item tools\ffmpeg\ffmpeg.exe dist\           # exe 옆에 두면 앱이 찾는다
+dotnet publish src\LifeRecorderWin\LifeRecorderWin.csproj -c Release `
+  -p:PublishSingleFile=true -p:EmbedFfmpeg=true -o dist
 ```
+
+`dist\LifeRecorder.exe` 하나가 나온다. 약 122MB이고 .NET 런타임과 ffmpeg이 둘 다 안에 들어 있다.
+처음 실행할 때 ffmpeg을 `%LOCALAPPDATA%\LifeRecorder\ffmpeg\`로 꺼내 쓴다 (1초쯤 걸리고 한 번뿐이다).
+
+`-p:EmbedFfmpeg=true`를 빼면 넣지 않는다. 개발 빌드가 그렇고, 그때는 `tools\ffmpeg\`를 그대로 쓴다
+(139MB를 어셈블리에 박으면 빌드가 느려진다).
 
 ffmpeg 바이너리는 저장소에 넣지 않는다(용량 + GPL 재배포). 이 앱은 ffmpeg을
 **별개 프로세스로 실행**할 뿐 링크하지 않으므로 앱 자체는 MIT 그대로다.
+
+> exe 옆이나 `exe가 있는 폴더\ffmpeg\`에 `ffmpeg.exe`를 두면 안에 든 것 대신 그것을 쓴다.
+> 하드웨어 인코더가 들어간 다른 빌드로 바꿔 끼울 때를 위한 문이다.
 
 > `dotnet build`로 만든 exe를 그냥 실행하면 **.NET 8 데스크톱 런타임**이 있어야 한다.
 > 없으면 아무 로그도 남기지 않고 "런타임을 설치하세요" 대화상자만 뜬다.
@@ -154,55 +164,43 @@ ffmpeg 바이너리는 저장소에 넣지 않는다(용량 + GPL 재배포). �
 
 ## 다른 컴퓨터에 설치하기
 
-한 대에서 만든 것을 통째로 옮기면 된다. **받는 쪽에는 .NET도 ffmpeg도 깔 필요가 없고,
-관리자 권한도 필요 없다.** 자립형(self-contained) exe라 런타임이 안에 들어 있다.
+**파일 하나 받아서 실행하면 끝이다.** 설치 프로그램도, .NET도, ffmpeg도, 관리자 권한도 필요 없다.
+자립형 exe라 런타임과 ffmpeg이 안에 들어 있다.
 
-### 1) 만드는 컴퓨터에서 — 꾸러미 만들기
+### 1) 만드는 컴퓨터에서
 
 ```powershell
 .\scripts\get-ffmpeg.ps1
-dotnet publish src\LifeRecorderWin\LifeRecorderWin.csproj -c Release -p:PublishSingleFile=true -o dist
-Copy-Item tools/ffmpeg/ffmpeg.exe dist/
-Remove-Item dist/*.pdb
-Compress-Archive -Path dist\* -DestinationPath LifeRecorder-win-x64.zip -Force
+dotnet publish src\LifeRecorderWin\LifeRecorderWin.csproj -c Release `
+  -p:PublishSingleFile=true -p:EmbedFfmpeg=true -o dist
+Remove-Item dist\*.pdb
+gh release create v1.2.0 dist\LifeRecorder.exe --title "v1.2.0" --notes "..."
 ```
 
-`dist\`에 남는 것은 두 개뿐이다. 압축하면 약 116MB다.
+저장소가 비공개라 exe를 저장소 안에 넣을 수는 없다(파일 100MB 제한). **릴리스에 첨부한다.**
 
-```
-LifeRecorder.exe   약 154MB (.NET 런타임이 안에 들어 있다)
-ffmpeg.exe         약 139MB
-```
+### 2) 받는 컴퓨터에서
 
-### 2) 옮기기 — GitHub 릴리스
-
-저장소가 비공개라 zip을 저장소에 넣을 수는 없다(파일 100MB 제한). **릴리스에 첨부한다.**
-
-```powershell
-gh release create v1.0.0 LifeRecorder-win-x64.zip --title "v1.0.0" --notes "첫 배포"
-```
-
-받는 컴퓨터에서:
+브라우저로 GitHub에 로그인해 릴리스 페이지에서 `LifeRecorder.exe`를 받는다. 또는:
 
 ```powershell
 gh auth login                                   # 처음 한 번만
-gh release download v1.0.0 --repo sehunYang/life-recorder-for-windows
-Expand-Archive LifeRecorder-win-x64.zip -DestinationPath "$env:LOCALAPPDATA\Programs\LifeRecorder"
+gh release download v1.2.0 --repo sehunYang/life-recorder-for-windows
 ```
 
-`gh`를 깔 수 없으면 브라우저로 GitHub에 로그인해서 릴리스 페이지에서 직접 내려받아도 된다.
-USB로 옮겨도 똑같다 — 두 파일이 한 폴더에 같이 있기만 하면 된다.
+USB로 옮겨도 똑같다. 파일이 하나뿐이라 빠뜨릴 것이 없다.
 
 > 어디에 두든 상관없지만 `Program Files`는 피한다. 관리자 권한이 필요하고, 이 앱은 필요 없다.
-> `%LOCALAPPDATA%\Programs\LifeRecorder` 가 무난하다.
+> `%LOCALAPPDATA%\Programs\LifeRecorder\` 가 무난하다. 바탕화면에 둬도 동작한다.
 
-### 3) 받는 컴퓨터에서 — 처음 켤 때
+### 3) 처음 켤 때
 
 1. `LifeRecorder.exe` 실행
    - "Windows의 PC 보호" 경고가 뜨면 **추가 정보 → 실행**. 서명하지 않은 exe라 그렇다
-2. **컴퓨터 이름**을 넣고 저장 (`home`, `school` 처럼 짧게). 컴퓨터마다 **다르게** 정할 것
+   - 처음 한 번은 안에 든 ffmpeg을 꺼내느라 1초쯤 더 걸린다
+2. **컴퓨터 이름**을 넣고 저장 (`home`, `school-desk`, `school-laptop`). 컴퓨터마다 **다르게** 정할 것
 3. **Google 계정 연결** → 클라이언트 ID·보안 비밀 붙여넣기 → 브라우저에서 동의
-   - **두 컴퓨터가 같은 클라이언트 ID·보안 비밀을 쓰면 된다.** 새로 만들 필요 없다
+   - **여러 컴퓨터가 같은 클라이언트 ID·보안 비밀을 쓰면 된다.** 새로 만들 필요 없다
    - 계정 연결은 컴퓨터마다 한 번씩 해야 한다. 토큰이 그 PC의 그 사용자 계정에 묶여 있어서
      (DPAPI) `credentials.bin`을 복사해 봐야 풀리지 않는다
 4. **Windows 시작할 때 자동으로 실행** 체크
@@ -210,8 +208,13 @@ USB로 옮겨도 똑같다 — 두 파일이 한 폴더에 같이 있기만 하�
 
 ### 4) 업데이트
 
-새 버전을 만들어 릴리스에 올리고, 받는 쪽에서 앱을 끝낸 뒤 exe만 덮어쓴다.
+새 exe를 릴리스에 올리고, 받는 쪽에서 앱을 끝낸 뒤 exe를 덮어쓴다.
+안에 든 ffmpeg이 달라졌으면 다음 실행에서 알아서 다시 꺼낸다(크기로 판단한다).
 설정·토큰·아직 못 올린 파일은 `%LOCALAPPDATA%\LifeRecorder\`에 따로 있어서 그대로 남는다.
+
+> **GitHub Packages는 이 용도가 아니다.** npm·NuGet·Maven·Docker 같은 패키지 레지스트리라
+> 라이브러리를 배포하는 곳이고, 최종 사용자가 받아 실행하는 exe를 올리는 자리가 아니다.
+> 릴리스가 맞다.
 
 ---
 

@@ -18,7 +18,31 @@
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- ffmpeg 을 넣으면 300MB 가까이 된다. 압축하면 절반 아래로 떨어진다. -->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
+
+  <!--
+    배포판은 ffmpeg 을 exe 안에 넣어 파일 하나로 만든다. 처음 실행할 때 꺼내 쓴다
+    (Capture/Ffmpeg.cs). 개발 빌드는 넣지 않는다 — 139MB 를 어셈블리에 박으면 빌드가 느려지고,
+    tools\ffmpeg\ 를 그대로 쓰면 되기 때문이다.
+
+      개발:   dotnet build
+      배포:   dotnet publish -c Release -p:PublishSingleFile=true -p:EmbedFfmpeg=true
+  -->
+  <PropertyGroup>
+    <EmbedFfmpeg Condition="'$(EmbedFfmpeg)' == ''">false</EmbedFfmpeg>
+    <FfmpegPath>$(MSBuildProjectDirectory)\..\..\tools\ffmpeg\ffmpeg.exe</FfmpegPath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(EmbedFfmpeg)' == 'true'">
+    <EmbeddedResource Include="$(FfmpegPath)" LogicalName="ffmpeg.exe" />
+  </ItemGroup>
+
+  <Target Name="CheckFfmpegPresent" BeforeTargets="BeforeBuild" Condition="'$(EmbedFfmpeg)' == 'true'">
+    <Error Condition="!Exists('$(FfmpegPath)')"
+           Text="ffmpeg 을 넣으려면 먼저 scripts\get-ffmpeg.ps1 을 실행하세요. 찾은 경로: $(FfmpegPath)" />
+  </Target>
 
   <ItemGroup>
     <!-- 리프레시 토큰을 사용자 계정 키로 암호화해 둔다 (DPAPI). -->

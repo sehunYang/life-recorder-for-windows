@@ -25,6 +25,18 @@ ffmpeg이 제대로 받아졌는지:
 .\tools\ffmpeg\ffmpeg.exe -hide_banner -encoders | Select-String libx264
 ```
 
+**배포판(파일 하나짜리 exe)을 확인할 때는** `tools\ffmpeg\` 이 없는 곳으로 옮겨서 실행해야 한다.
+저장소 안에서 그냥 돌리면 안에 든 것 대신 `tools\` 쪽을 써서 정작 확인하려던 경로가 안 돈다.
+
+```powershell
+dotnet publish src\LifeRecorderWin\LifeRecorderWin.csproj -c Release `
+  -p:PublishSingleFile=true -p:EmbedFfmpeg=true -o dist
+Copy-Item dist\LifeRecorder.exe "$env:TEMP\lr-test\" -Force   # 저장소 밖으로
+```
+
+첫 실행 로그에 `ffmpeg 을 꺼냈습니다: ...` 가 한 번 뜨고, 두 번째 실행부터는 안 떠야 한다
+(이미 꺼내 둔 것을 크기로 확인하고 그대로 쓴다).
+
 ---
 
 ## 1. 캡처가 되는지 (앱 없이 ffmpeg만)
