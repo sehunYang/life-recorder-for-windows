@@ -22,6 +22,15 @@ internal sealed class Prefs
     /// <summary>Windows 로그인 시 자동 시작.</summary>
     public bool AutoStart { get; set; } = true;
 
+    /// <summary>종량제 회선(핫스팟·LTE)에서는 업로드를 미룬다. 데스크톱에서는 걸릴 일이 없다.</summary>
+    public bool HoldUploadOnMetered { get; set; } = true;
+
+    /// <summary>
+    /// 배터리로 돌 때 아낀다 — 업로드를 미루고, 잔량이 <see cref="Config.BatteryStopPercent"/> 아래면
+    /// 녹화도 멈춘다. 배터리가 없는 컴퓨터에서는 아무 일도 하지 않는다.
+    /// </summary>
+    public bool SaveOnBattery { get; set; } = true;
+
     /// <summary>Drive 폴더 ID 캐시. 매번 이름으로 찾지 않기 위한 것.</summary>
     public Dictionary<string, string> FolderIds { get; set; } = new();
 

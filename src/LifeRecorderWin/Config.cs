@@ -92,6 +92,23 @@ internal static class Config
     /// <summary>업로드가 실패했을 때 다시 시도하기까지.</summary>
     public static readonly TimeSpan UploadRetryDelay = TimeSpan.FromMinutes(1);
 
+    /// <summary>배터리·종량제 때문에 업로드를 미뤄 둔 동안 다시 확인하는 간격.</summary>
+    public static readonly TimeSpan UploadHoldRecheck = TimeSpan.FromMinutes(2);
+
+    // ── 노트북 ───────────────────────────────────────────────────────────────
+    // 안드로이드의 "Wi-Fi 전용 / 충전 중에만" 제약을 데스크톱용으로 되살린 것.
+    // 배터리가 없는 컴퓨터에서는 어느 것도 걸리지 않는다.
+
+    /// <summary>
+    /// 배터리 잔량이 이 아래로 내려가면 녹화를 멈춘다.
+    /// 갑자기 꺼지면 쓰던 세그먼트가 통째로 날아가므로(mp4 에 moov 가 안 쓰인다),
+    /// 남은 전력이 있을 때 스스로 닫는 편이 낫다.
+    /// </summary>
+    public const int BatteryStopPercent = 20;
+
+    /// <summary>배터리·회선 상태를 다시 보는 간격. 이벤트만으로는 잔량 변화를 못 잡는다.</summary>
+    public static readonly TimeSpan PowerPollInterval = TimeSpan.FromMinutes(1);
+
     // ── Drive 배치 ───────────────────────────────────────────────────────────
     // 안드로이드가 쓰는 폴더를 그대로 쓴다. 폴더를 새로 만들지 않는 것이 요구사항이다.
 

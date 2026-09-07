@@ -31,7 +31,7 @@ internal sealed class TrayApp : ApplicationContext
         var menu = new ContextMenuStrip();
         menu.Items.Add(new ToolStripMenuItem("상태 보기", null, (_, _) => ShowForm()));
         menu.Items.Add(_toggleItem);
-        menu.Items.Add(new ToolStripMenuItem("지금 업로드", null, (_, _) => _uploads.RequestNow()));
+        menu.Items.Add(new ToolStripMenuItem("지금 업로드", null, (_, _) => _uploads.RequestNow(manual: true)));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("로그 폴더 열기", null, (_, _) => LinkDialog.OpenUrl(Storage.LogDir)));
         menu.Items.Add(new ToolStripSeparator());

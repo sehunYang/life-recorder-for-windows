@@ -34,6 +34,8 @@ internal static class Program
             Log.Error("UI 스레드 예외: " + e.Exception);
 
         Log.Info("=== Life Recorder for Windows 시작 ===");
+        // 컴퓨터마다 달라지는 것들을 한 줄로 남긴다. 세 대에 깔아 두면 로그만 보고 어느 것인지 안다.
+        Log.Info(Environment());
         try
         {
             Application.Run(new TrayApp(startHidden));
@@ -42,5 +44,16 @@ internal static class Program
         {
             Log.Info("=== 종료 ===");
         }
+    }
+
+    /// <summary>이 컴퓨터가 어떤 환경인지 한 줄. 세 대에 깔면 로그가 서로 헷갈린다.</summary>
+    private static string Environment()
+    {
+        var name = Storage.HasDeviceName ? Storage.DeviceName : "(이름 없음)";
+        var battery = Capture.PowerInfo.HasBattery
+            ? (Capture.PowerInfo.OnBattery ? "배터리" : "전원 연결됨")
+            : "배터리 없음";
+        var line = Capture.PowerInfo.IsMetered() ? "종량제" : "일반";
+        return $"환경: [{name}] 화면 배율 {Capture.Dpi.SystemScalePercent()} · {battery} · 회선 {line}";
     }
 }

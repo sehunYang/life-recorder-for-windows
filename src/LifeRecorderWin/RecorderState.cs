@@ -24,6 +24,9 @@ internal sealed record Status
     public long PendingBytes { get; init; }
 
     public string? Uploading { get; init; }
+
+    /// <summary>배터리·종량제 때문에 업로드를 미뤄 둔 이유. null 이면 안 미뤘다.</summary>
+    public string? UploadHoldReason { get; init; }
     public DateTime? LastUploadAt { get; init; }
     public string? LastUploadError { get; init; }
     public bool DriveLinked { get; init; }

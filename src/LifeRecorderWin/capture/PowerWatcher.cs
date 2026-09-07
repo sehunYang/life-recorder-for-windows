@@ -30,6 +30,12 @@ internal sealed class PowerWatcher : IDisposable
     private bool _displayOff;
     private bool _suspended;
 
+    /// <summary>같은 이유를 두 번 알리지 않기 위해 직전에 알린 값을 들고 있는다.</summary>
+    private string? _lastReason;
+
+    /// <summary>배터리 잔량은 이벤트로 오지 않는다. 주기적으로 들여다본다.</summary>
+    private readonly System.Threading.Timer _poll;
+
     public PowerWatcher()
     {
         _window = new MessageWindow(OnDisplayState);
@@ -41,6 +47,10 @@ internal sealed class PowerWatcher : IDisposable
         SystemEvents.SessionSwitch += OnSessionSwitch;
         SystemEvents.PowerModeChanged += OnPowerMode;
         SystemEvents.DisplaySettingsChanged += OnDisplaySettings;
+
+        _lastReason = PauseReason;
+        _poll = new System.Threading.Timer(
+            _ => Publish(), null, Config.PowerPollInterval, Config.PowerPollInterval);
     }
 
     /// <summary>지금 멈춰야 하는 이유. null 이면 담아도 된다.</summary>
@@ -48,9 +58,30 @@ internal sealed class PowerWatcher : IDisposable
         _suspended ? "절전 중" :
         _locked ? "잠금 상태" :
         _displayOff ? "모니터 꺼짐" :
-        null;
+        BatteryTooLow();
 
-    private void Publish() => PauseReasonChanged?.Invoke(PauseReason);
+    /// <summary>
+    /// 배터리가 얼마 안 남았으면 스스로 멈춘다. 갑자기 꺼지면 쓰던 세그먼트가 통째로 날아간다
+    /// (mp4 는 닫힐 때 moov 가 쓰인다). 남은 전력이 있을 때 정상적으로 닫는 편이 낫다.
+    /// 배터리가 없는 컴퓨터에서는 <see cref="PowerInfo.OnBattery"/> 가 항상 false 라 걸리지 않는다.
+    /// </summary>
+    private static string? BatteryTooLow()
+    {
+        if (!Prefs.Current.SaveOnBattery || !PowerInfo.OnBattery) return null;
+        var pct = PowerInfo.BatteryPercent;
+        return pct != null && pct < Config.BatteryStopPercent
+            ? $"배터리 {pct}% — {Config.BatteryStopPercent}% 아래라 멈춤"
+            : null;
+    }
+
+    /// <summary>이유가 실제로 바뀌었을 때만 알린다. 주기 확인이 매분 두드리지 않게.</summary>
+    private void Publish()
+    {
+        var reason = PauseReason;
+        if (reason == _lastReason) return;
+        _lastReason = reason;
+        PauseReasonChanged?.Invoke(reason);
+    }
 
     private void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
     {
@@ -84,10 +115,13 @@ internal sealed class PowerWatcher : IDisposable
             case PowerModes.Resume:
                 _suspended = false;
                 break;
+            case PowerModes.StatusChange:
+                // 전원 어댑터를 꽂거나 뽑았다. 배터리 판단이 달라진다.
+                break;
             default:
                 return;
         }
-        Log.Info("전원 상태: " + e.Mode);
+        Log.Info("전원 상태: " + e.Mode + " — " + PowerInfo.Describe());
         Publish();
     }
 
@@ -112,6 +146,7 @@ internal sealed class PowerWatcher : IDisposable
         SystemEvents.SessionSwitch -= OnSessionSwitch;
         SystemEvents.PowerModeChanged -= OnPowerMode;
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettings;
+        _poll.Dispose();
         if (_displayNotify != IntPtr.Zero)
         {
             UnregisterPowerSettingNotification(_displayNotify);

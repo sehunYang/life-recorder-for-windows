@@ -26,6 +26,8 @@ internal sealed class MainForm : Form
     private readonly TextBox _device = new();
     private readonly Button _deviceSave = new();
     private readonly CheckBox _autoStart = new();
+    private readonly CheckBox _holdMetered = new();
+    private readonly CheckBox _saveBattery = new();
     private readonly System.Windows.Forms.Timer _tick = new();
 
     public MainForm(RecordingService recording, UploadScheduler uploads, DriveAuth auth)
@@ -39,7 +41,7 @@ internal sealed class MainForm : Form
         AutoScaleMode = AutoScaleMode.None;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = Px.Z(460, 444);
+        ClientSize = Px.Z(460, 500);
         Font = new Font("Segoe UI", 9f);
         ShowInTaskbar = true;
 
@@ -85,7 +87,7 @@ internal sealed class MainForm : Form
         _upload.Size = Px.Z(200, 44);
         _upload.Click += (_, _) =>
         {
-            _uploads.RequestNow();
+            _uploads.RequestNow(manual: true);
             RecorderState.Update(s => s with { LastUploadError = null });
         };
 
@@ -126,7 +128,7 @@ internal sealed class MainForm : Form
         };
 
         _autoStart.Text = "Windows 시작할 때 자동으로 실행";
-        _autoStart.Location = Px.P(20, 342);
+        _autoStart.Location = Px.P(20, 340);
         _autoStart.Size = Px.Z(420, 24);
         _autoStart.Checked = AutoStart.IsEnabled();
         _autoStart.CheckedChanged += (_, _) =>
@@ -135,12 +137,34 @@ internal sealed class MainForm : Form
             Prefs.Update(p => p.AutoStart = _autoStart.Checked);
         };
 
+        // 노트북용. 배터리가 없는 컴퓨터에서는 켜 둬도 아무 일도 일어나지 않는다.
+        _holdMetered.Text = "종량제 회선(핫스팟·LTE)에서는 업로드 미루기";
+        _holdMetered.Location = Px.P(20, 366);
+        _holdMetered.Size = Px.Z(420, 24);
+        _holdMetered.Checked = Prefs.Current.HoldUploadOnMetered;
+        _holdMetered.CheckedChanged += (_, _) =>
+        {
+            Prefs.Update(p => p.HoldUploadOnMetered = _holdMetered.Checked);
+            _uploads.RequestNow();
+        };
+
+        _saveBattery.Text = $"배터리로 돌 때 아끼기 (업로드 미룸 · {Config.BatteryStopPercent}% 아래면 녹화 멈춤)";
+        _saveBattery.Location = Px.P(20, 392);
+        _saveBattery.Size = Px.Z(420, 24);
+        _saveBattery.Checked = Prefs.Current.SaveOnBattery;
+        _saveBattery.CheckedChanged += (_, _) =>
+        {
+            Prefs.Update(p => p.SaveOnBattery = _saveBattery.Checked);
+            _recording.Reapply();
+            _uploads.RequestNow();
+        };
+
         var note = new Label
         {
             Text = "컴퓨터 이름은 올라가는 파일 이름 끝에 붙어 어느 컴퓨터 화면인지 가릅니다.\n"
                    + "잠금·모니터 꺼짐·절전 동안에는 쉬었다가, 풀리면 바로 다시 시작합니다.\n"
                    + "업로드가 끝난 파일은 로컬에서 지웁니다. 창을 닫아도 트레이에 남습니다.",
-            Location = Px.P(20, 372),
+            Location = Px.P(20, 424),
             Size = Px.Z(420, 56),
             ForeColor = Color.FromArgb(110, 110, 110),
         };
@@ -149,7 +173,8 @@ internal sealed class MainForm : Form
         {
             _state, _screen, sep1, _pending, _drive, _error,
             _toggle, _upload, _link, openFolder,
-            deviceLabel, _device, _deviceSave, deviceHint, _autoStart, note,
+            deviceLabel, _device, _deviceSave, deviceHint,
+            _autoStart, _holdMetered, _saveBattery, note,
         });
     }
 
@@ -281,9 +306,11 @@ internal sealed class MainForm : Form
             : $"업로드 대기 {s.PendingFiles}개 · {Storage.FmtBytes(s.PendingBytes)}";
 
         var last = s.LastUploadAt?.ToString("MM-dd HH:mm") ?? "없음";
-        _drive.Text = s.DriveLinked
-            ? $"Drive 연결됨 · 마지막 업로드 {last}"
-            : "Drive 연결 필요 — 파일은 로컬에 쌓이고 있습니다";
+        _drive.Text = !s.DriveLinked
+            ? "Drive 연결 필요 — 파일은 로컬에 쌓이고 있습니다"
+            : s.UploadHoldReason != null
+                ? $"업로드 미룸 — {s.UploadHoldReason} · 마지막 업로드 {last}"
+                : $"Drive 연결됨 · 마지막 업로드 {last}";
 
         _error.Text = s.LastUploadError ?? "";
 
