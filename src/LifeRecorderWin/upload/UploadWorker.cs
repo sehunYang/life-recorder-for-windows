@@ -26,6 +26,7 @@ internal sealed class UploadWorker
         // 날이 지난 수집 기록·앞 창 기록을 먼저 확정해서 이번 차례에 같이 올린다.
         IndexLog.FinalizeCompletedDays();
         Capture.ActiveWindowLog.FinalizeCompletedDays();
+        Capture.ScreenTextLog.FinalizeCompletedDays();
         RecorderState.RefreshPending();
 
         string token;
@@ -121,6 +122,7 @@ internal sealed class UploadWorker
                      ("screen", Config.DriveScreenFolder),
                      ("index", Config.DriveIndexFolder),
                      ("app", Config.DriveAppFolder),
+                     ("screentext", Config.DriveScreenTextFolder),
                  })
         {
             var id = Prefs.FolderId(key);

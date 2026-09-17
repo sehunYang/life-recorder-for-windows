@@ -44,6 +44,7 @@ ON을 누르면 트레이에 앉아 **모니터 전체를 한 화면으로** 계
 | 업로드 | Drive 재개 가능 업로드(8MB 청크). 크기·MD5 검증 후 로컬 삭제. 세그먼트가 닫힐 때마다 + 30분마다 |
 | 수집 기록 | 올린 파일을 하루치 JSONL(`pcindex_yyyy-MM-dd.jsonl`)로 `LifeRecorder/index`에 남긴다. 보관 기간이 지나 원본을 지워도 무엇이 언제 수집됐는지는 남는다 |
 | 앞 창 기록 | 녹화가 도는 동안 **어느 창이 앞에 있었는지**(프로세스 이름·창 제목)를 1초마다 보고 바뀔 때만 하루치 JSONL(`pcapp_yyyy-MM-dd_<이름>.jsonl`)로 `LifeRecorder/app`에 남긴다. 브라우저면 **주소창 URL과 문서 스크롤 위치**도. 입력이 60초 없으면 `idle`. 영상을 읽지 않고도 "이 구간은 무슨 앱·무슨 페이지"를 알게 하는 색인이다. DESIGN.md 7절 |
+| 화면 글자 | 녹화가 도는 동안 **앞 창에 보이는 글자**를 UI 자동화 트리에서 그대로 읽어 하루치 JSONL(`pcscreentext_yyyy-MM-dd_<이름>.jsonl`)로 `LifeRecorder/screen-text`에 남긴다. 폰 접근성 서비스의 PC 판. 크롬 웹 본문·VS Code·카카오톡 PC 가 OCR 없이 원문으로 온다. 비밀번호 칸과 이 앱 자신만 뺀다. DESIGN.md 8절 |
 | 생존 | 트레이 상주 + 로그인 시 자동 시작. ffmpeg이 죽으면 10초 → 30초 → 1분 → 5분 간격으로 계속 다시 붙는다 |
 
 로컬 저장 위치: `%LOCALAPPDATA%\LifeRecorder\`
@@ -53,6 +54,7 @@ work\   pcscreen_2026-09-07_13-00-00.mp4   ffmpeg이 지금 쓰는 중
 queue\  pcscreen_2026-09-07_12-00-00.mp4   완성돼 업로드를 기다리는 것
 index\  rawpcindex_2026-09-07.jsonl.part   오늘치 수집 기록
         rawpcapp_2026-09-07.jsonl.part     오늘치 앞 창 기록
+        rawpcscreentext_2026-09-07.jsonl.part  오늘치 화면 글자
 logs\   liferecorder-2026-09-07.log        2주치
 ffmpeg\ ffmpeg.exe                         exe 안에서 꺼내 둔 것
 ```

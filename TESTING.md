@@ -128,6 +128,20 @@ Get-Content "$env:LOCALAPPDATA\LifeRecorder\index\rawpcapp_$(Get-Date -Format yy
 - `Win`+`L` 로 잠그면 `"event":"stop","reason":"잠금 상태"`, 풀면 다시 `start`
 - 날이 바뀌면 `queue\` 에 `pcapp_<어제>_<컴퓨터이름>.jsonl` 이 생겨 Drive `app/` 으로 올라간다
 
+### 3-2. 화면 글자
+
+```powershell
+Get-Content "$env:LOCALAPPDATA\LifeRecorder\index
+awpcscreentext_$(Get-Date -Format yyyy-MM-dd)_*.jsonl.part" -Tail 3
+```
+
+- ON 직후 `"kind":"service","event":"start"` 한 줄
+- 크롬에서 기사를 열면 1~3초 안에 `"kind":"screen","proc":"chrome"` 줄에 본문 문장들이 `nodes[].text` 로 온다. 스크롤하면 새로 보인 문단만 한 줄 더
+- 같은 창을 가만히 두면 줄이 늘지 않는다. 메모장에 글을 치는 동안은 안 남고, 멈추면 한 줄
+- 비밀번호 칸(브라우저 로그인 폼)은 `nodes` 에 없어야 한다
+- 60초 넘게 손을 떼면 읽지 않는다 (줄이 안 는다)
+- OFF 하면 `"event":"stop"` 의 `reason` 끝에 `(읽기 N회 · 노드 M · 느린 창 K)`
+
 ---
 
 ## 4. 쉬는 조건

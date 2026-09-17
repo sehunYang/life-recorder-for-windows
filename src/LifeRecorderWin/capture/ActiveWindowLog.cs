@@ -207,7 +207,7 @@ internal sealed class ActiveWindowLog : IDisposable
             try
             {
                 var path = Path.Combine(Storage.IndexDir, Storage.RawAppName(Storage.Today()));
-                File.AppendAllText(path, JsonSerializer.Serialize(record, Storage.JsonlOptions) + "\n", Encoding.UTF8);
+                File.AppendAllText(path, JsonSerializer.Serialize(record, Storage.JsonlOptions) + "\n", Storage.Utf8NoBom);
             }
             catch (Exception e)
             {

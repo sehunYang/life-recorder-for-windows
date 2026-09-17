@@ -32,6 +32,12 @@ internal static class Storage
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
+    /// <summary>
+    /// JSONL 파일에 쓸 인코딩. <c>Encoding.UTF8</c> 은 파일을 새로 만들 때 BOM(EF BB BF)을 앞에 붙여
+    /// 첫 줄이 JSON 으로 안 읽힌다 (2026-09-18 실측: pcapp_·pcindex_ 첫 줄이 그랬다). BOM 없이 쓴다.
+    /// </summary>
+    public static readonly System.Text.Encoding Utf8NoBom = new System.Text.UTF8Encoding(false);
+
     public static string BaseDir { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LifeRecorder");
 
@@ -61,6 +67,7 @@ internal static class Storage
     public static string FolderKeyOf(string name) =>
         name.StartsWith(Config.IndexPrefix, StringComparison.Ordinal) ? "index" :
         name.StartsWith(Config.AppPrefix, StringComparison.Ordinal) ? "app" :
+        name.StartsWith(Config.ScreenTextPrefix, StringComparison.Ordinal) ? "screentext" :
         "screen";
 
     public static string MimeOf(string name) => Path.GetExtension(name).ToLowerInvariant() switch
@@ -190,6 +197,12 @@ internal static class Storage
 
     /// <summary>오늘치 앞 창 기록 (계속 이어 쓰는 중).</summary>
     public static string RawAppName(string day) => $"{Config.RawAppPrefix}{day}_{DeviceName}.jsonl{Part}";
+
+    /// <summary>확정된 하루치 화면 글자 (업로드 대상).</summary>
+    public static string ScreenTextName(string day) => $"{Config.ScreenTextPrefix}{day}_{DeviceName}.jsonl";
+
+    /// <summary>오늘치 화면 글자 (계속 이어 쓰는 중).</summary>
+    public static string RawScreenTextName(string day) => $"{Config.RawScreenTextPrefix}{day}_{DeviceName}.jsonl{Part}";
 
     /// <summary>
     /// <c>rawpcindex_2026-09-08_home.jsonl.part</c> 같은 이름에서 날짜만 꺼낸다. 형식이 아니면 null.

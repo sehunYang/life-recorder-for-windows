@@ -124,6 +124,26 @@ internal static class Config
     /// <summary>문서 스크롤 위치(0~1)가 이만큼 넘게 움직였을 때만 한 줄 적는다. 읽는 리듬을 재는 데는 충분하다.</summary>
     public const double AppScrollStep = 0.05;
 
+    // ── 화면 글자 ────────────────────────────────────────────────────────────
+    // 앞 창의 요소 트리에서 보이는 글자를 그대로 남긴다 (Capture/ScreenTextLog.cs). 안드로이드 접근성 서비스의 PC 판.
+
+    /// <summary>앞 창을 읽는 간격. 새로 나타난 글자만 적으므로 자주 읽어도 파일은 안 는다.</summary>
+    public const int ScreenTextPollMs = 1500;
+
+    /// <summary>한 번에 보는 요소 상한. 웹 페이지는 수천 개가 넘는다. 폰은 600.</summary>
+    public const int ScreenTextMaxNodes = 1500;
+
+    /// <summary>글자 하나의 상한. 문서 편집기의 Value 는 문서 전체라 여기서 자른다.</summary>
+    public const int ScreenTextTextMax = 2000;
+
+    /// <summary>같은 창에서 이 시간 안에 본 글자는 다시 넣지 않는다. 폰과 같다.</summary>
+    public const int ScreenTextRecentTtlMs = 120_000;
+
+    public const int ScreenTextMaxRecent = 6000;
+
+    /// <summary>한 번 읽는 데 이보다 오래 걸린 창은 다음 읽기를 늦춘다 (걸린 시간의 4배, 최대 30초).</summary>
+    public const int ScreenTextBudgetMs = 1000;
+
     // ── 업로드 ───────────────────────────────────────────────────────────────
 
     /// <summary>Google Drive 재개 가능 업로드 청크. 256KB 배수여야 한다.</summary>
@@ -154,6 +174,12 @@ internal static class Config
 
     /// <summary>앞 창 기록. 안드로이드의 앱 사용 기록(<c>app_</c>)과 같은 폴더를 쓴다.</summary>
     public const string DriveAppFolder = "app";
+
+    /// <summary>화면 글자. 안드로이드의 접근성 화면 글자(<c>screentext_</c>)와 같은 폴더를 쓴다.</summary>
+    public const string DriveScreenTextFolder = "screen-text";
+
+    public const string ScreenTextPrefix = "pcscreentext_";
+    public const string RawScreenTextPrefix = "rawpcscreentext_";
 
     /// <summary>같은 폴더에 섞이므로 접두어로 기기를 구분한다. 안드로이드는 <c>screen_</c> 다.</summary>
     public const string ScreenPrefix = "pcscreen_";

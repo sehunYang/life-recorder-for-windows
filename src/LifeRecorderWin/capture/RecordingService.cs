@@ -18,6 +18,8 @@ internal sealed class RecordingService : IDisposable
     private readonly UploadScheduler _uploads;
     /// <summary>영상 옆에 "어느 창이 앞에 있었나"를 남긴다. 세션과 같이 켜지고 꺼진다.</summary>
     private readonly ActiveWindowLog _apps;
+    /// <summary>앞 창에 보이는 글자. 폰의 접근성 서비스와 같은 몫. 세션과 같이 켜지고 꺼진다.</summary>
+    private readonly ScreenTextLog _text = new();
 
     private ScreenRecorderSession? _session;
     private System.Threading.Timer? _retry;
@@ -120,6 +122,7 @@ internal sealed class RecordingService : IDisposable
         _retryStep = 0;
         CancelRetry();
         _apps.Start("녹화 시작");
+        _text.Start("녹화 시작");
         RecorderState.Update(s => s with
         {
             ScreenRecording = true,
@@ -137,6 +140,7 @@ internal sealed class RecordingService : IDisposable
         _session = null;
         CancelRetry();
         _apps.Stop(reason);
+        _text.Stop(reason);
         s?.Stop();
         s?.Dispose();
         RecorderState.Update(x => x with { ScreenRecording = false, CurrentSegmentStart = null });
@@ -157,6 +161,7 @@ internal sealed class RecordingService : IDisposable
         {
             _session = null;
             _apps.Stop(reason);
+            _text.Stop(reason);
             RecorderState.Update(s => s with { ScreenRecording = false, ScreenStoppedReason = reason });
             RecorderState.RefreshPending();
             _uploads.RequestNow();
@@ -207,6 +212,7 @@ internal sealed class RecordingService : IDisposable
             var s = _session;
             _session = null;
             _apps.Dispose();
+            _text.Dispose();
             s?.Stop();
             s?.Dispose();
         }
