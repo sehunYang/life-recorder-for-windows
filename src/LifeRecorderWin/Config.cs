@@ -72,8 +72,20 @@ internal static class Config
     /// <summary>하드웨어 인코더를 쓰려면 h264_nvenc / h264_qsv / h264_amf 로 바꾼다.</summary>
     public const string ScreenEncoder = "libx264";
 
-    /// <summary>키프레임 간격(초). 세그먼트는 키프레임에서만 갈리므로 경계 오차의 상한이기도 하다.</summary>
-    public const int ScreenKeyframeSec = 5;
+    /// <summary>
+    /// 키프레임 간격(초). 세그먼트는 키프레임에서만 갈리므로 경계 오차의 상한이기도 하다.
+    ///
+    /// 5초였을 때 정지 화면에서 시간당 240MB 가 키프레임만으로 나갔다 (2880x1086, 장당 340KB × 720장,
+    /// 2026-09-17 새벽 파일 실측). CRF 는 I-프레임을 못 줄인다. 30초로 늘려 그 몫을 6분의 1로 만든다.
+    /// 대신 정각 분할이 최대 30초 늦을 수 있다 (DESIGN.md 6절).
+    /// </summary>
+    public const int ScreenKeyframeSec = 30;
+
+    /// <summary>
+    /// 입력이 이만큼 없으면 화면 녹화를 쉰다 (<see cref="Capture.IdleWatcher"/>).
+    /// 밤새 켜 둔 PC 에서 움직이는 배경화면과 시계만 찍히던 것을 막는다. 입력이 오면 10초 안에 재개.
+    /// </summary>
+    public static readonly TimeSpan IdlePauseAfter = TimeSpan.FromMinutes(5);
 
     /// <summary>마우스 커서를 그릴지. 무엇을 가리키고 있었는지가 남는다.</summary>
     public const bool ScreenDrawMouse = true;

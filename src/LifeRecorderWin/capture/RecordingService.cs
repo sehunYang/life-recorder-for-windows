@@ -13,6 +13,7 @@ internal sealed class RecordingService : IDisposable
 {
     private readonly object _lock = new();
     private readonly PowerWatcher _power;
+    private readonly IdleWatcher _idle;
     private readonly UploadScheduler _uploads;
     /// <summary>영상 옆에 "어느 창이 앞에 있었나"를 남긴다. 세션과 같이 켜지고 꺼진다.</summary>
     private readonly ActiveWindowLog _apps = new();
@@ -29,6 +30,8 @@ internal sealed class RecordingService : IDisposable
         _power = new PowerWatcher();
         _power.PauseReasonChanged += OnPauseReasonChanged;
         _power.DisplayLayoutChanged += OnDisplayLayoutChanged;
+        _idle = new IdleWatcher();
+        _idle.PauseReasonChanged += OnPauseReasonChanged;
         // 어댑터를 꽂자마자 미뤄 둔 것이 올라가게. 안 그러면 최대 2분을 기다린다.
         _power.PowerSourceChanged += () => _uploads.RequestNow();
     }
@@ -75,7 +78,8 @@ internal sealed class RecordingService : IDisposable
         lock (_lock)
         {
             var enabled = Prefs.Current.RecordingEnabled;
-            var pause = _power.PauseReason;
+            // 전원·세션 쪽 이유가 먼저다. 잠겨 있으면 입력이 없는 것은 당연하니 그 이유를 보여 준다.
+            var pause = _power.PauseReason ?? _idle.PauseReason;
             var shouldRun = enabled && pause == null;
 
             RecorderState.Update(s => s with { ScreenPausedReason = enabled ? pause : null });
@@ -206,5 +210,7 @@ internal sealed class RecordingService : IDisposable
         _power.PauseReasonChanged -= OnPauseReasonChanged;
         _power.DisplayLayoutChanged -= OnDisplayLayoutChanged;
         _power.Dispose();
+        _idle.PauseReasonChanged -= OnPauseReasonChanged;
+        _idle.Dispose();
     }
 }

@@ -57,7 +57,7 @@ internal sealed class ActiveWindowLog : IDisposable
     {
         try
         {
-            var idle = IdleMs() >= Config.AppIdleAfterMs;
+            var idle = Input.IdleMs() >= Config.AppIdleAfterMs;
             if (idle != _idle)
             {
                 _idle = idle;
@@ -146,14 +146,6 @@ internal sealed class ActiveWindowLog : IDisposable
         return s.Length > Config.AppTitleMaxLength ? s[..Config.AppTitleMaxLength] : s;
     }
 
-    /// <summary>마지막 입력 뒤 지난 시간. 틱 카운트가 넘쳐도 unsigned 뺄셈이라 맞다.</summary>
-    private static uint IdleMs()
-    {
-        var info = new LastInputInfo { cbSize = (uint)Marshal.SizeOf<LastInputInfo>() };
-        if (!GetLastInputInfo(ref info)) return 0;
-        return unchecked((uint)Environment.TickCount - info.dwTime);
-    }
-
     public void Dispose() => Stop("종료");
 
     // ── Win32 ────────────────────────────────────────────────────────────────
@@ -166,15 +158,4 @@ internal sealed class ActiveWindowLog : IDisposable
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int maxCount);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct LastInputInfo
-    {
-        public uint cbSize;
-        public uint dwTime;
-    }
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetLastInputInfo(ref LastInputInfo info);
 }
