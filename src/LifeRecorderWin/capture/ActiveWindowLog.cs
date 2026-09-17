@@ -25,15 +25,25 @@ internal sealed class ActiveWindowLog : IDisposable
 {
     private static readonly object Lock = new();
 
+    private readonly MediaWatcher _media;
     private System.Threading.Timer? _timer;
     private readonly Dictionary<int, string> _procNames = new();
     private string? _lastKey;
+    private string? _lastMediaKey;
+    private bool _lastFullscreen;
     private bool _idle;
+
+    public ActiveWindowLog(MediaWatcher media)
+    {
+        _media = media;
+    }
 
     /// <summary>세션이 열릴 때. 첫 틱에서 지금 앞에 있는 창이 바로 적힌다.</summary>
     public void Start(string reason)
     {
         _lastKey = null;
+        _lastMediaKey = null;
+        _lastFullscreen = false;
         _idle = false;
         Note("start", reason);
         _timer?.Dispose();
@@ -52,6 +62,42 @@ internal sealed class ActiveWindowLog : IDisposable
 
     private void Note(string evt, string? reason) =>
         Write(new Dictionary<string, object?> { ["event"] = evt, ["reason"] = reason });
+
+    /// <summary>
+    /// 미디어 상태를 새로 본 직후(10초마다). 재생 중인 세션이 바뀌었을 때만 한 줄 남긴다 —
+    /// 무엇을 틀어 놓고 있었는지(앱·제목)가 글자로 남는다. 세션이 없으면 stopped 한 줄.
+    /// </summary>
+    public void OnMediaPolled()
+    {
+        if (_timer == null) return;
+        try
+        {
+            var p = _media.Playing;
+            var key = string.Join("", p.Select(s => s.App + "|" + s.Title + "|" + s.Artist));
+            if (key != _lastMediaKey)
+            {
+                _lastMediaKey = key;
+                if (p.Count == 0)
+                    Write(new Dictionary<string, object?> { ["event"] = "media", ["state"] = "stopped" });
+                else
+                    foreach (var s in p)
+                        Write(new Dictionary<string, object?>
+                        {
+                            ["event"] = "media", ["state"] = "playing",
+                            ["app"] = s.App, ["title"] = s.Title, ["artist"] = s.Artist,
+                        });
+            }
+            if (_media.Fullscreen != _lastFullscreen)
+            {
+                _lastFullscreen = _media.Fullscreen;
+                Write(new Dictionary<string, object?> { ["event"] = "fullscreen", ["on"] = _lastFullscreen });
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Warn("미디어 기록 실패: " + e.Message);
+        }
+    }
 
     private void Tick()
     {

@@ -87,6 +87,12 @@ internal static class Config
     /// </summary>
     public static readonly TimeSpan IdlePauseAfter = TimeSpan.FromMinutes(5);
 
+    /// <summary>
+    /// 오디오 출력 피크(0~1)가 이 값 이상이면 "소리가 난다"로 본다 (<see cref="Capture.MediaWatcher"/>).
+    /// 20초 연속일 때만 인정해 알림음 한 번에는 흔들리지 않는다. 영상·음악이 돌면 입력이 없어도 녹화를 계속한다.
+    /// </summary>
+    public const float MediaAudioPeak = 0.02f;
+
     /// <summary>마우스 커서를 그릴지. 무엇을 가리키고 있었는지가 남는다.</summary>
     public const bool ScreenDrawMouse = true;
 

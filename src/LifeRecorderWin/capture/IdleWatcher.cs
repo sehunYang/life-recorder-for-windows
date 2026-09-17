@@ -7,19 +7,24 @@ namespace LifeRecorderWin.Capture;
 /// 시계 때문에 시간당 480MB 가 찍혔다 (2026-09-17 새벽 3시 파일 실측). 담을 것이 없는 시간이다.
 /// 입력이 돌아오면 10초 안에 다시 시작한다. 쉰 구간은 앞 창 기록(pcapp_)에 stop/start 로 남는다.
 ///
-/// 영상만 보면서 입력을 안 하는 시간도 같이 쉬게 된다. 그때 무엇을 보고 있었는지는
-/// 앞 창 기록의 제목으로 남으니, 그 손실은 감수한다.
+/// 예외 — 손을 안 대도 보고 있는 중일 수 있다. 영상·음악이 돌거나 전체화면이면
+/// (<see cref="MediaWatcher"/>) 입력이 없어도 쉬지 않는다.
 /// </summary>
 internal sealed class IdleWatcher : IDisposable
 {
     /// <summary>null 이면 다시 담아도 된다. 없음↔있음 전환에만 알린다.</summary>
     public event Action<string?>? PauseReasonChanged;
 
+    /// <summary>10초마다 미디어 상태를 새로 본 직후. 앞 창 기록이 media 이벤트를 남기는 데 쓴다.</summary>
+    public event Action? Polled;
+
+    private readonly MediaWatcher _media;
     private readonly System.Threading.Timer _timer;
     private bool _paused;
 
-    public IdleWatcher()
+    public IdleWatcher(MediaWatcher media)
     {
+        _media = media;
         _timer = new System.Threading.Timer(_ => Tick(), null, PollMs, PollMs);
     }
 
@@ -27,12 +32,19 @@ internal sealed class IdleWatcher : IDisposable
 
     private void Tick()
     {
+        _media.Poll();
+        Polled?.Invoke();
+
         var idle = TimeSpan.FromMilliseconds(Input.IdleMs());
-        var paused = idle >= Config.IdlePauseAfter;
+        var paused = idle >= Config.IdlePauseAfter && !_media.IsActive;
         PauseReason = paused ? $"입력 없음 {(int)idle.TotalMinutes}분" : null;
         if (paused == _paused) return;
         _paused = paused;
-        Log.Info(paused ? $"입력이 {(int)idle.TotalMinutes}분 없어 화면 녹화를 쉽니다" : "입력이 돌아와 화면 녹화를 다시 시작합니다");
+        Log.Info(paused
+            ? $"입력이 {(int)idle.TotalMinutes}분 없어 화면 녹화를 쉽니다"
+            : _media.IsActive && idle >= Config.IdlePauseAfter
+                ? $"입력은 없지만 {_media.Describe()} — 화면 녹화를 계속합니다"
+                : "입력이 돌아와 화면 녹화를 다시 시작합니다");
         PauseReasonChanged?.Invoke(PauseReason);
     }
 

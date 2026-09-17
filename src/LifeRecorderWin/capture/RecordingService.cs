@@ -13,10 +13,11 @@ internal sealed class RecordingService : IDisposable
 {
     private readonly object _lock = new();
     private readonly PowerWatcher _power;
+    private readonly MediaWatcher _media = new();
     private readonly IdleWatcher _idle;
     private readonly UploadScheduler _uploads;
     /// <summary>영상 옆에 "어느 창이 앞에 있었나"를 남긴다. 세션과 같이 켜지고 꺼진다.</summary>
-    private readonly ActiveWindowLog _apps = new();
+    private readonly ActiveWindowLog _apps;
 
     private ScreenRecorderSession? _session;
     private System.Threading.Timer? _retry;
@@ -30,8 +31,10 @@ internal sealed class RecordingService : IDisposable
         _power = new PowerWatcher();
         _power.PauseReasonChanged += OnPauseReasonChanged;
         _power.DisplayLayoutChanged += OnDisplayLayoutChanged;
-        _idle = new IdleWatcher();
+        _apps = new ActiveWindowLog(_media);
+        _idle = new IdleWatcher(_media);
         _idle.PauseReasonChanged += OnPauseReasonChanged;
+        _idle.Polled += _apps.OnMediaPolled;
         // 어댑터를 꽂자마자 미뤄 둔 것이 올라가게. 안 그러면 최대 2분을 기다린다.
         _power.PowerSourceChanged += () => _uploads.RequestNow();
     }
@@ -211,6 +214,8 @@ internal sealed class RecordingService : IDisposable
         _power.DisplayLayoutChanged -= OnDisplayLayoutChanged;
         _power.Dispose();
         _idle.PauseReasonChanged -= OnPauseReasonChanged;
+        _idle.Polled -= _apps.OnMediaPolled;
         _idle.Dispose();
+        _media.Dispose();
     }
 }
