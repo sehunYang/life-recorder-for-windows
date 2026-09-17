@@ -23,6 +23,15 @@ internal static class Storage
 {
     public const string Part = ".part";
 
+    /// <summary>
+    /// JSONL 한 줄을 쓸 때. 기본값은 한글을 녹화 로 이스케이프해 파일이 여섯 배로 불고 사람이 못 읽는다.
+    /// 안드로이드 쪽처럼 UTF-8 원문 그대로 쓴다. 파일은 우리만 읽으니 HTML 안전성은 필요 없다.
+    /// </summary>
+    public static readonly System.Text.Json.JsonSerializerOptions JsonlOptions = new()
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     public static string BaseDir { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LifeRecorder");
 

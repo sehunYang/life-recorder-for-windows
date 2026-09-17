@@ -46,7 +46,7 @@ internal static class IndexLog
             try
             {
                 var path = Path.Combine(Storage.IndexDir, Storage.RawIndexName(Storage.Today()));
-                File.AppendAllText(path, JsonSerializer.Serialize(record) + "\n", Encoding.UTF8);
+                File.AppendAllText(path, JsonSerializer.Serialize(record, Storage.JsonlOptions) + "\n", Encoding.UTF8);
             }
             catch (Exception e)
             {
