@@ -20,7 +20,6 @@ namespace LifeRecorderWin.Upload;
 /// </summary>
 internal static class IndexLog
 {
-    private const string Ext = ".jsonl";
     private static readonly object Lock = new();
 
     /// <summary>업로드 하나가 끝날 때마다 한 줄. 실패해도 업로드는 계속되어야 하므로 조용히 넘어간다.</summary>
@@ -62,52 +61,6 @@ internal static class IndexLog
     /// <returns>확정한 파일 수</returns>
     public static int FinalizeCompletedDays()
     {
-        lock (Lock)
-        {
-            var today = Storage.Today();
-            var count = 0;
-
-            foreach (var f in new DirectoryInfo(Storage.IndexDir)
-                         .GetFiles(Config.RawIndexPrefix + "*" + Ext + Storage.Part))
-            {
-                var day = Storage.DayFromRawIndexName(f.Name);
-                if (day == null || string.CompareOrdinal(day, today) >= 0) continue;
-                if (f.Length == 0)
-                {
-                    TryDelete(f);
-                    continue;
-                }
-
-                // 기기 이름을 바꿨다면 예전 이름으로 쌓인 오늘치도 지금 이름으로 확정된다.
-                // 어차피 같은 컴퓨터가 남긴 것이고, 이름이 둘로 갈리면 파일만 늘어난다.
-                var dest = Path.Combine(Storage.QueueDir, Storage.IndexName(day));
-                try
-                {
-                    if (File.Exists(dest))
-                    {
-                        // 이미 확정된 날에 뒤늦게 더 붙은 경우 (업로드가 밀려 아직 대기열에 있다). 이어 붙인다.
-                        using (var src = f.OpenRead())
-                        using (var dst = new FileStream(dest, FileMode.Append, FileAccess.Write))
-                            src.CopyTo(dst);
-                        f.Delete();
-                    }
-                    else
-                    {
-                        f.MoveTo(dest);
-                    }
-                    count++;
-                }
-                catch (Exception e)
-                {
-                    Log.Warn($"수집 기록 확정 실패 ({day}): {e.Message}");
-                }
-            }
-            return count;
-        }
-    }
-
-    private static void TryDelete(FileInfo f)
-    {
-        try { f.Delete(); } catch (IOException) { }
+        lock (Lock) return Storage.FinalizeDailyRaw(Config.RawIndexPrefix, Storage.IndexName);
     }
 }

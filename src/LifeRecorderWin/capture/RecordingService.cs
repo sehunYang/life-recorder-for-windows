@@ -14,6 +14,8 @@ internal sealed class RecordingService : IDisposable
     private readonly object _lock = new();
     private readonly PowerWatcher _power;
     private readonly UploadScheduler _uploads;
+    /// <summary>영상 옆에 "어느 창이 앞에 있었나"를 남긴다. 세션과 같이 켜지고 꺼진다.</summary>
+    private readonly ActiveWindowLog _apps = new();
 
     private ScreenRecorderSession? _session;
     private System.Threading.Timer? _retry;
@@ -90,7 +92,7 @@ internal sealed class RecordingService : IDisposable
             }
 
             if (shouldRun && _session == null) StartSession();
-            else if (!shouldRun && _session != null) StopSession();
+            else if (!shouldRun && _session != null) StopSession(pause ?? "OFF");
         }
     }
 
@@ -110,6 +112,7 @@ internal sealed class RecordingService : IDisposable
         _session = session;
         _retryStep = 0;
         CancelRetry();
+        _apps.Start("녹화 시작");
         RecorderState.Update(s => s with
         {
             ScreenRecording = true,
@@ -121,11 +124,12 @@ internal sealed class RecordingService : IDisposable
         _uploads.RequestNow();
     }
 
-    private void StopSession()
+    private void StopSession(string reason)
     {
         var s = _session;
         _session = null;
         CancelRetry();
+        _apps.Stop(reason);
         s?.Stop();
         s?.Dispose();
         RecorderState.Update(x => x with { ScreenRecording = false, CurrentSegmentStart = null });
@@ -145,6 +149,7 @@ internal sealed class RecordingService : IDisposable
         lock (_lock)
         {
             _session = null;
+            _apps.Stop(reason);
             RecorderState.Update(s => s with { ScreenRecording = false, ScreenStoppedReason = reason });
             RecorderState.RefreshPending();
             _uploads.RequestNow();
@@ -182,7 +187,7 @@ internal sealed class RecordingService : IDisposable
             var before = _session.CaptureRect;
             if (now == before) return;
             Log.Info($"잡는 영역 변경 {before.Width}x{before.Height} → {now.Width}x{now.Height}, 세션을 다시 엽니다");
-            StopSession();
+            StopSession("모니터 구성 변경");
         }
         Apply();
     }
@@ -194,6 +199,7 @@ internal sealed class RecordingService : IDisposable
             CancelRetry();
             var s = _session;
             _session = null;
+            _apps.Dispose();
             s?.Stop();
             s?.Dispose();
         }

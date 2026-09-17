@@ -10,7 +10,9 @@ namespace LifeRecorderWin;
 ///   work\   pcscreen_&lt;시각&gt;.mp4     ffmpeg 이 지금 쓰고 있는(또는 방금 닫은) 세그먼트
 ///   queue\  pcscreen_&lt;시각&gt;.mp4     완성된 업로드 대상
 ///           pcindex_&lt;날짜&gt;.jsonl     확정된 수집 기록, 업로드 대상
+///           pcapp_&lt;날짜&gt;.jsonl       확정된 앞 창 기록, 업로드 대상
 ///   index\  rawpcindex_&lt;날짜&gt;.jsonl.part  오늘치 수집 기록 (계속 이어 쓰는 중, 업로드 대상 아님)
+///           rawpcapp_&lt;날짜&gt;.jsonl.part    오늘치 앞 창 기록 (같음)
 /// </code>
 ///
 /// 업로더는 <c>queue\</c> 만 본다. 그래서 쓰는 중인 파일이 올라갈 일이 없다.
@@ -48,7 +50,9 @@ internal static class Storage
 
     /// <summary>파일 이름 접두어로 Drive 폴더 키를 정한다.</summary>
     public static string FolderKeyOf(string name) =>
-        name.StartsWith(Config.IndexPrefix, StringComparison.Ordinal) ? "index" : "screen";
+        name.StartsWith(Config.IndexPrefix, StringComparison.Ordinal) ? "index" :
+        name.StartsWith(Config.AppPrefix, StringComparison.Ordinal) ? "app" :
+        "screen";
 
     public static string MimeOf(string name) => Path.GetExtension(name).ToLowerInvariant() switch
     {
@@ -172,17 +176,71 @@ internal static class Storage
     /// <summary>오늘치 수집 기록 (계속 이어 쓰는 중).</summary>
     public static string RawIndexName(string day) => $"{Config.RawIndexPrefix}{day}_{DeviceName}.jsonl{Part}";
 
+    /// <summary>확정된 하루치 앞 창 기록 (업로드 대상).</summary>
+    public static string AppName(string day) => $"{Config.AppPrefix}{day}_{DeviceName}.jsonl";
+
+    /// <summary>오늘치 앞 창 기록 (계속 이어 쓰는 중).</summary>
+    public static string RawAppName(string day) => $"{Config.RawAppPrefix}{day}_{DeviceName}.jsonl{Part}";
+
     /// <summary>
-    /// <c>rawpcindex_2026-09-08_home.jsonl.part</c> 에서 날짜만 꺼낸다. 형식이 아니면 null.
+    /// <c>rawpcindex_2026-09-08_home.jsonl.part</c> 같은 이름에서 날짜만 꺼낸다. 형식이 아니면 null.
     /// 기기 이름을 바꾼 뒤에도 예전 이름의 파일을 확정할 수 있어야 해서 이름은 보지 않는다.
     /// </summary>
-    public static string? DayFromRawIndexName(string fileName)
+    public static string? DayFromRawName(string rawPrefix, string fileName)
     {
-        if (!fileName.StartsWith(Config.RawIndexPrefix, StringComparison.Ordinal)) return null;
-        var rest = fileName[Config.RawIndexPrefix.Length..];
+        if (!fileName.StartsWith(rawPrefix, StringComparison.Ordinal)) return null;
+        var rest = fileName[rawPrefix.Length..];
         if (rest.Length < 10) return null;
         var day = rest[..10];
         return DateTime.TryParseExact(day, "yyyy-MM-dd", CultureInfo.InvariantCulture,
             DateTimeStyles.None, out _) ? day : null;
+    }
+
+    /// <summary>
+    /// <c>index\</c> 에 쌓인 오늘치 <c>.jsonl.part</c> 중 날이 지난 것을 <c>queue\</c> 로 옮겨 확정한다.
+    /// 내용은 손대지 않는다. 수집 기록과 앞 창 기록이 같은 규칙을 쓴다.
+    ///
+    /// 기기 이름을 바꿨다면 예전 이름으로 쌓인 것도 지금 이름으로 확정된다.
+    /// 어차피 같은 컴퓨터가 남긴 것이고, 이름이 둘로 갈리면 파일만 늘어난다.
+    /// 호출하는 쪽이 자기 잠금을 잡고 부른다.
+    /// </summary>
+    /// <returns>확정한 파일 수</returns>
+    public static int FinalizeDailyRaw(string rawPrefix, Func<string, string> doneNameOf)
+    {
+        var today = Today();
+        var count = 0;
+        foreach (var f in new DirectoryInfo(IndexDir).GetFiles(rawPrefix + "*.jsonl" + Part))
+        {
+            var day = DayFromRawName(rawPrefix, f.Name);
+            if (day == null || string.CompareOrdinal(day, today) >= 0) continue;
+            if (f.Length == 0)
+            {
+                try { f.Delete(); } catch (IOException) { }
+                continue;
+            }
+
+            var dest = Path.Combine(QueueDir, doneNameOf(day));
+            try
+            {
+                if (File.Exists(dest))
+                {
+                    // 이미 확정된 날에 뒤늦게 더 붙은 경우 (업로드가 밀려 아직 대기열에 있다). 이어 붙인다.
+                    using (var src = f.OpenRead())
+                    using (var dst = new FileStream(dest, FileMode.Append, FileAccess.Write))
+                        src.CopyTo(dst);
+                    f.Delete();
+                }
+                else
+                {
+                    f.MoveTo(dest);
+                }
+                count++;
+            }
+            catch (Exception e)
+            {
+                Log.Warn($"{rawPrefix}{day} 확정 실패: {e.Message}");
+            }
+        }
+        return count;
     }
 }

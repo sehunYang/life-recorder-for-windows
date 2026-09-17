@@ -23,8 +23,9 @@ internal sealed class UploadWorker
     /// <returns>true 면 대기열을 비웠다. false 면 다시 시도해야 한다.</returns>
     public async Task<bool> RunAsync(CancellationToken ct)
     {
-        // 날이 지난 수집 기록을 먼저 확정해서 이번 차례에 같이 올린다.
+        // 날이 지난 수집 기록·앞 창 기록을 먼저 확정해서 이번 차례에 같이 올린다.
         IndexLog.FinalizeCompletedDays();
+        Capture.ActiveWindowLog.FinalizeCompletedDays();
         RecorderState.RefreshPending();
 
         string token;
@@ -119,6 +120,7 @@ internal sealed class UploadWorker
                  {
                      ("screen", Config.DriveScreenFolder),
                      ("index", Config.DriveIndexFolder),
+                     ("app", Config.DriveAppFolder),
                  })
         {
             var id = Prefs.FolderId(key);

@@ -81,6 +81,19 @@ internal static class Config
     /// <summary>세그먼트 길이. 벽시계 정각 경계에 맞춰 끊는다 (안드로이드와 동일).</summary>
     public const int SegmentSeconds = 3600;
 
+    // ── 앞 창 기록 ───────────────────────────────────────────────────────────
+    // 어느 앱이 앞에 있었는지를 영상 옆에 색인으로 남긴다. 내려받은 쪽이 프레임을 읽지 않고도
+    // "이 구간은 무슨 앱"을 알게 하려는 것이다 (Capture/ActiveWindowLog.cs).
+
+    /// <summary>앞 창을 확인하는 간격. 바뀌었을 때만 적으므로 자주 봐도 파일은 안 는다.</summary>
+    public const int AppPollMs = 1000;
+
+    /// <summary>이만큼 입력이 없으면 자리를 비운 것으로 본다.</summary>
+    public const int AppIdleAfterMs = 60_000;
+
+    /// <summary>창 제목은 이 길이에서 자른다. 브라우저 탭 제목이 길다.</summary>
+    public const int AppTitleMaxLength = 200;
+
     // ── 업로드 ───────────────────────────────────────────────────────────────
 
     /// <summary>Google Drive 재개 가능 업로드 청크. 256KB 배수여야 한다.</summary>
@@ -109,6 +122,9 @@ internal static class Config
     public const string DriveScreenFolder = "screen";
     public const string DriveIndexFolder = "index";
 
+    /// <summary>앞 창 기록. 안드로이드의 앱 사용 기록(<c>app_</c>)과 같은 폴더를 쓴다.</summary>
+    public const string DriveAppFolder = "app";
+
     /// <summary>같은 폴더에 섞이므로 접두어로 기기를 구분한다. 안드로이드는 <c>screen_</c> 다.</summary>
     public const string ScreenPrefix = "pcscreen_";
 
@@ -117,6 +133,12 @@ internal static class Config
 
     /// <summary>오늘치라 아직 올리지 않는 수집 기록.</summary>
     public const string RawIndexPrefix = "rawpcindex_";
+
+    /// <summary>확정된 앞 창 기록. 안드로이드는 <c>app_</c> 다.</summary>
+    public const string AppPrefix = "pcapp_";
+
+    /// <summary>오늘치라 아직 올리지 않는 앞 창 기록.</summary>
+    public const string RawAppPrefix = "rawpcapp_";
 
     /// <summary>
     /// 기기 이름의 최대 길이. 파일 이름 끝에 <c>_home</c> 처럼 붙어 컴퓨터를 가른다.
