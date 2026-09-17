@@ -161,7 +161,10 @@ PC는 모니터마다 파일을 나누지 않는다. **모니터를 실제 배�
 
 ```json
 {"t":1788742800123,"kind":"app","event":"start","reason":"녹화 시작","device":"home"}
-{"t":1788742800456,"kind":"app","event":"focus","proc":"chrome","pid":18332,"title":"수행평가 계획서 - Google Docs - Chrome","device":"home"}
+{"t":1788742800456,"kind":"app","event":"focus","proc":"chrome","pid":18332,"title":"수행평가 계획서 - Google Docs - Chrome","url":"docs.google.com/document/d/1aB…/edit","device":"home"}
+{"t":1788742871000,"kind":"app","event":"focus","proc":"chrome","pid":18332,"title":"2026 수능 물리 출제 경향 - 네이버 뉴스 - Chrome","url":"n.news.naver.com/article/001/0015000000","device":"home"}
+{"t":1788742884000,"kind":"app","event":"scroll","url":"n.news.naver.com/article/001/0015000000","pos":0.31,"view":0.22,"device":"home"}
+{"t":1788742897000,"kind":"app","event":"scroll","url":"n.news.naver.com/article/001/0015000000","pos":0.78,"view":0.22,"device":"home"}
 {"t":1788742930001,"kind":"app","event":"focus","proc":"Hwp","pid":21040,"title":"2학기 계획.hwp - 한글","device":"home"}
 {"t":1788746530000,"kind":"app","event":"idle","device":"home"}
 {"t":1788747130000,"kind":"app","event":"active","device":"home"}
@@ -172,7 +175,9 @@ PC는 모니터마다 파일을 나누지 않는다. **모니터를 실제 배�
 |---|---|
 | `t` | 사건 시각 (epoch ms) |
 | `kind` | 항상 `"app"` |
-| `event` | `focus` (앞 창이 바뀜) \| `idle` (입력이 60초 없음) \| `active` (다시 입력) \| `media` (재생 중인 미디어 세션이 바뀜) \| `fullscreen` (전체화면 켜짐/꺼짐) \| `start` \| `stop` (녹화 세션과 함께) |
+| `event` | `focus` (앞 창이 바뀜) \| `scroll` (브라우저 문서 스크롤이 5% 넘게 움직임) \| `idle` (입력이 60초 없음) \| `active` (다시 입력) \| `media` (재생 중인 미디어 세션이 바뀜) \| `fullscreen` (전체화면 켜짐/꺼짐) \| `start` \| `stop` (녹화 세션과 함께) |
+| `url` | 앞 창이 브라우저(`chrome`·`msedge`·`brave`·`whale`)일 때 주소창 값. **스킴(`https://`)은 뗀다.** 500자에서 자른다. 주소창이 바뀌는 중(치는 중)이면 안정될 때까지 `focus`를 미룬다. 못 읽으면 칸이 없다. `focus`·`scroll`에 |
+| `pos` · `view` | `scroll`에만. 문서에서 화면 위 끝의 위치(0~1)와 한 화면이 문서에서 차지하는 비율(0~1). `pos + view ≈ 1`이면 끝까지 내려간 것. 새 URL은 0에서 시작한 것으로 본다 |
 | `state` | `media`에만. `playing` \| `stopped`. `playing`이면 `app`(세션을 낸 앱, 예 `Chrome`·`Spotify.exe`)·`title`·`artist`가 따라온다 — **유튜브 영상 제목이 여기 온다** |
 | `on` | `fullscreen`에만. `true`/`false` |
 | `proc` | 앞 창을 가진 프로세스 이름 (확장자 없음). 얻지 못하면 `"?"`. `focus`에만 |
@@ -186,7 +191,9 @@ PC는 모니터마다 파일을 나누지 않는다. **모니터를 실제 배�
 - `media`는 Windows의 미디어 세션(볼륨 팝업에 뜨는 것)을 그대로 옮긴 것이다. 여기 붙지 않는 플레이어(mpv·PotPlayer 등)는 `media`가 안 나온다 — 그래도 소리로 유휴 판정은 피한다.
 - `start` → `stop` 밖에는 아무것도 없다. 세션이 쉬는 동안(잠금·모니터 꺼짐)은 영상과 같이 비어 있다.
 - 앱 이름은 **프로세스 이름**이지 창에 보이는 이름이 아니다. 스토어 앱은 `ApplicationFrameHost`로 나오고 제목에 앱 이름이 있다.
-  브라우저는 전부 `chrome`/`msedge` 한 가지이고 **탭이 바뀌면 제목이 바뀌어 `focus`가 새로 난다.**
+  브라우저는 전부 `chrome`/`msedge` 한 가지이고 **탭이 바뀌면 제목이 바뀌어 `focus`가 새로 난다.** URL이 바뀌어도 새로 난다.
+- **`url`은 원문을 다시 찾기 위한 것이다.** 창 제목만으로는 "무엇을 봤나"는 알아도 본문을 못 가져온다. URL이 있으면 내려받은 쪽이 밤에 기사 본문·자막을 원문에서 가져올 수 있다. `scroll`은 "끝까지 읽었나·어떤 리듬으로 내렸나"를 남긴다.
+  둘 다 Windows UI 자동화로 **주소창 값과 문서의 스크롤 속성만** 읽는다. 페이지 내용은 읽지 않고, 비밀번호로 표시된 입력란은 건드리지 않는다. 처음 한 번 트리를 뒤지는 데 0.5초, 그 뒤는 틱당 몇 ms (2026-09-17 실측).
 - 창 제목에는 **문서 이름·메일 제목·대화 상대**가 그대로 들어간다. 영상에 이미 보이는 것이지만 글자로 뽑혀 있으니 취급에 주의.
 - 이 앱 자신(`LifeRecorder`)도 나온다. 걸러서 쓸 것.
 - 해석은 하지 않는다. 어느 앱이 읽을 만한 것인지는 소비자가 정한다.

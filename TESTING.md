@@ -122,6 +122,8 @@ Get-Content "$env:LOCALAPPDATA\LifeRecorder\index\rawpcapp_$(Get-Date -Format yy
 - ON 직후 `"event":"start"` 한 줄, 이어서 지금 앞에 있는 창의 `"event":"focus"` 한 줄
 - 다른 창을 클릭하면 **1초 안에** `focus` 줄이 하나 더 (`proc`·`title` 확인)
 - 같은 창을 계속 쓰면 줄이 늘지 않아야 한다. 브라우저 탭을 바꾸면 제목이 바뀌어 한 줄 는다
+- 크롬·엣지가 앞에 있으면 `focus`에 `"url":"youtube.com/watch?v=…"` 가 붙는다 (스킴 없이). 주소창에 글자를 치는 동안은 새 줄이 나지 않고, 페이지가 열린 뒤 1~2초 안에 난다
+- 긴 기사를 열고 스크롤하면 `"event":"scroll","pos":0.31,"view":0.22` 줄이 5% 움직일 때마다 난다. 끝까지 내리면 `pos + view` 가 1에 가깝다. 유튜브 재생 화면처럼 안 내리면 안 난다
 - 1분 넘게 손을 떼면 `"event":"idle"`, 마우스를 움직이면 `"event":"active"`
 - `Win`+`L` 로 잠그면 `"event":"stop","reason":"잠금 상태"`, 풀면 다시 `start`
 - 날이 바뀌면 `queue\` 에 `pcapp_<어제>_<컴퓨터이름>.jsonl` 이 생겨 Drive `app/` 으로 올라간다

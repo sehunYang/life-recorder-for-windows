@@ -10,6 +10,7 @@ namespace LifeRecorderWin.Capture;
 ///
 /// 영상만 있으면 "이 시간에 무슨 앱을 썼나"를 알려고 프레임을 읽어야(OCR) 한다.
 /// 1초에 한 번 앞 창의 프로세스 이름과 제목을 보고, **바뀌었을 때만** 한 줄 적는다.
+/// 브라우저면 주소창 URL 과 문서 스크롤 위치도 같이 (<see cref="BrowserProbe"/>).
 /// 입력이 한동안 없으면 idle, 다시 있으면 active 를 적어 자리를 비운 구간도 남긴다.
 /// 녹화 세션과 같이 켜지고 꺼지므로, 잠금·모니터 꺼짐 동안은 영상처럼 비어 있다.
 ///
@@ -26,12 +27,18 @@ internal sealed class ActiveWindowLog : IDisposable
     private static readonly object Lock = new();
 
     private readonly MediaWatcher _media;
+    private readonly BrowserProbe _probe = new();
     private System.Threading.Timer? _timer;
     private readonly Dictionary<int, string> _procNames = new();
     private string? _lastKey;
     private string? _lastMediaKey;
     private bool _lastFullscreen;
     private bool _idle;
+    private int _busy;
+    /// <summary>직전 틱의 주소창 값. 두 틱 연속 같을 때만 믿는다 (치는 중인 값을 거른다).</summary>
+    private string? _seenUrl;
+    private string? _scrollUrl;
+    private double _scrollPos;
 
     public ActiveWindowLog(MediaWatcher media)
     {
@@ -101,6 +108,8 @@ internal sealed class ActiveWindowLog : IDisposable
 
     private void Tick()
     {
+        // 브라우저 트리를 처음 뒤질 때 1초를 넘길 수 있다. 겹쳐 돌지 않게 한다.
+        if (Interlocked.Exchange(ref _busy, 1) == 1) return;
         try
         {
             var idle = Input.IdleMs() >= Config.AppIdleAfterMs;
@@ -115,21 +124,72 @@ internal sealed class ActiveWindowLog : IDisposable
             GetWindowThreadProcessId(h, out var pid);
             var proc = ProcName((int)pid);
             var title = Title(h);
-            var key = proc + "" + title;
-            if (key == _lastKey) return;
-            _lastKey = key;
-            Write(new Dictionary<string, object?>
+
+            string? url = null;
+            if (Config.BrowserProcs.Contains(proc, StringComparer.OrdinalIgnoreCase))
             {
-                ["event"] = "focus",
-                ["proc"] = proc,
-                ["pid"] = (int)pid,
-                ["title"] = title,
-            });
+                var raw = _probe.Url(h);
+                var stable = raw == _seenUrl;
+                _seenUrl = raw;
+                // 주소창이 바뀌는 중(새 페이지로 가는 중·검색어를 치는 중)이면 다음 틱에 적는다.
+                if (!stable) return;
+                url = raw;
+            }
+            else
+            {
+                _seenUrl = null;
+            }
+
+            var key = proc + "" + title + "" + url;
+            if (key != _lastKey)
+            {
+                _lastKey = key;
+                var rec = new Dictionary<string, object?>
+                {
+                    ["event"] = "focus",
+                    ["proc"] = proc,
+                    ["pid"] = (int)pid,
+                    ["title"] = title,
+                };
+                if (url != null) rec["url"] = url;
+                Write(rec);
+            }
+
+            if (url != null) NoteScroll(h, url);
         }
         catch (Exception e)
         {
             Log.Warn("앞 창 기록 실패: " + e.Message);
         }
+        finally
+        {
+            Interlocked.Exchange(ref _busy, 0);
+        }
+    }
+
+    /// <summary>
+    /// 문서 스크롤 위치가 한 칸(<see cref="Config.AppScrollStep"/>) 넘게 움직였을 때만 한 줄.
+    /// 새 페이지는 0에서 시작한 것으로 본다. 읽은 리듬(조금씩·멈춤)과 깊이(끝까지 갔나)가 남는다.
+    /// </summary>
+    private void NoteScroll(IntPtr h, string url)
+    {
+        var s = _probe.Scroll(h, url);
+        if (s == null) return;
+        if (url != _scrollUrl)
+        {
+            _scrollUrl = url;
+            _scrollPos = 0;
+        }
+        var (pos, view) = s.Value;
+        if (Math.Abs(pos - _scrollPos) < Config.AppScrollStep) return;
+        _scrollPos = pos;
+        Write(new Dictionary<string, object?>
+        {
+            ["event"] = "scroll",
+            ["url"] = url,
+            ["pos"] = Math.Round(pos, 2),
+            ["view"] = Math.Round(view, 2),
+        });
     }
 
     private void Write(Dictionary<string, object?> fields)

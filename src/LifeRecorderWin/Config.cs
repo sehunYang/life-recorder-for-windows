@@ -112,6 +112,18 @@ internal static class Config
     /// <summary>창 제목은 이 길이에서 자른다. 브라우저 탭 제목이 길다.</summary>
     public const int AppTitleMaxLength = 200;
 
+    /// <summary>
+    /// 앞 창이 이 프로세스면 주소창 URL 과 문서 스크롤 위치를 같이 적는다 (Capture/BrowserProbe.cs).
+    /// 크로미움 계열만. URL 이 있어야 밤에 원문(기사 본문·자막)을 다시 가져올 수 있다.
+    /// </summary>
+    public static readonly string[] BrowserProcs = { "chrome", "msedge", "brave", "whale" };
+
+    /// <summary>URL 은 이 길이에서 자른다. 쿼리가 긴 URL 은 어차피 다시 부르지 않는다.</summary>
+    public const int AppUrlMaxLength = 500;
+
+    /// <summary>문서 스크롤 위치(0~1)가 이만큼 넘게 움직였을 때만 한 줄 적는다. 읽는 리듬을 재는 데는 충분하다.</summary>
+    public const double AppScrollStep = 0.05;
+
     // ── 업로드 ───────────────────────────────────────────────────────────────
 
     /// <summary>Google Drive 재개 가능 업로드 청크. 256KB 배수여야 한다.</summary>

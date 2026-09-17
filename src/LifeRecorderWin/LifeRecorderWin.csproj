@@ -48,6 +48,11 @@
   <ItemGroup>
     <!-- 리프레시 토큰을 사용자 계정 키로 암호화해 둔다 (DPAPI). -->
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+    <!--
+      UIAutomationClient(브라우저 주소창·문서 스크롤 읽기, Capture/BrowserProbe.cs)는 WPF 묶음에 있다.
+      UseWPF 를 켜면 암시적 using 이 바뀌어 System.IO 등이 사라지므로, 전체 데스크톱 프레임워크를 직접 참조한다.
+    -->
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
   </ItemGroup>
 
 </Project>
