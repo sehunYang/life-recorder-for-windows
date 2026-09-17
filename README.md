@@ -43,6 +43,7 @@ ON을 누르면 트레이에 앉아 **모니터 전체를 한 화면으로** 계
 | 쉬는 때 | 세션 잠금·모니터 꺼짐·절전 동안에는 담을 화면이 없어 쉰다. 풀리면 바로 다시 시작한다. 그 구간은 파일이 없는 공백으로 남는다 |
 | 업로드 | Drive 재개 가능 업로드(8MB 청크). 크기·MD5 검증 후 로컬 삭제. 세그먼트가 닫힐 때마다 + 30분마다 |
 | 수집 기록 | 올린 파일을 하루치 JSONL(`pcindex_yyyy-MM-dd.jsonl`)로 `LifeRecorder/index`에 남긴다. 보관 기간이 지나 원본을 지워도 무엇이 언제 수집됐는지는 남는다 |
+| 앞 창 기록 | 녹화가 도는 동안 **어느 창이 앞에 있었는지**(프로세스 이름·창 제목)를 1초마다 보고 바뀔 때만 하루치 JSONL(`pcapp_yyyy-MM-dd_<이름>.jsonl`)로 `LifeRecorder/app`에 남긴다. 입력이 60초 없으면 `idle`. 영상을 읽지 않고도 "이 구간은 무슨 앱"을 알게 하는 색인이다. DESIGN.md 7절 |
 | 생존 | 트레이 상주 + 로그인 시 자동 시작. ffmpeg이 죽으면 10초 → 30초 → 1분 → 5분 간격으로 계속 다시 붙는다 |
 
 로컬 저장 위치: `%LOCALAPPDATA%\LifeRecorder\`
@@ -51,6 +52,7 @@ ON을 누르면 트레이에 앉아 **모니터 전체를 한 화면으로** 계
 work\   pcscreen_2026-09-07_13-00-00.mp4   ffmpeg이 지금 쓰는 중
 queue\  pcscreen_2026-09-07_12-00-00.mp4   완성돼 업로드를 기다리는 것
 index\  rawpcindex_2026-09-07.jsonl.part   오늘치 수집 기록
+        rawpcapp_2026-09-07.jsonl.part     오늘치 앞 창 기록
 logs\   liferecorder-2026-09-07.log        2주치
 ffmpeg\ ffmpeg.exe                         exe 안에서 꺼내 둔 것
 ```
@@ -67,6 +69,8 @@ LifeRecorder/
   index/    index_2026-09-07.jsonl                  ← 폰
             pcindex_2026-09-07_home.jsonl           ← 집 PC
             pcindex_2026-09-07_school.jsonl         ← 학교 PC
+  app/      app_2026-09-07.jsonl                    ← 폰 (앱 사용 기록)
+            pcapp_2026-09-07_home.jsonl             ← 집 PC (앞 창 기록)
 ```
 
 앞은 `pc` 접두어로 폰과 갈리고, 뒤는 컴퓨터 이름으로 PC끼리 갈린다.

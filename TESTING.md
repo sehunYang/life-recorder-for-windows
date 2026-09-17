@@ -111,6 +111,21 @@ Get-ChildItem "$env:LOCALAPPDATA\LifeRecorder\queue"
 
 기다리기 싫으면 `Config.SegmentSeconds` 를 60으로 바꿔 빌드해서 1분 단위로 본다.
 
+### 3-1. 앞 창 기록
+
+녹화가 도는 동안 어느 창이 앞에 있었는지가 같이 남는지 본다.
+
+```powershell
+Get-Content "$env:LOCALAPPDATA\LifeRecorder\index\rawpcapp_$(Get-Date -Format yyyy-MM-dd)_*.jsonl.part" -Tail 10
+```
+
+- ON 직후 `"event":"start"` 한 줄, 이어서 지금 앞에 있는 창의 `"event":"focus"` 한 줄
+- 다른 창을 클릭하면 **1초 안에** `focus` 줄이 하나 더 (`proc`·`title` 확인)
+- 같은 창을 계속 쓰면 줄이 늘지 않아야 한다. 브라우저 탭을 바꾸면 제목이 바뀌어 한 줄 는다
+- 1분 넘게 손을 떼면 `"event":"idle"`, 마우스를 움직이면 `"event":"active"`
+- `Win`+`L` 로 잠그면 `"event":"stop","reason":"잠금 상태"`, 풀면 다시 `start`
+- 날이 바뀌면 `queue\` 에 `pcapp_<어제>_<컴퓨터이름>.jsonl` 이 생겨 Drive `app/` 으로 올라간다
+
 ---
 
 ## 4. 쉬는 조건
