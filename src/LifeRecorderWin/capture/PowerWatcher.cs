@@ -26,6 +26,13 @@ internal sealed class PowerWatcher : IDisposable
     /// <summary>전원 어댑터를 꽂거나 뽑았다. 미뤄 둔 업로드를 바로 다시 볼 기회다.</summary>
     public event Action? PowerSourceChanged;
 
+    /// <summary>
+    /// 시스템 종료·로그오프가 시작됐다. 인자는 이유("시스템 종료" 또는 "로그오프").
+    /// 이 뒤에는 바탕화면이 사라지고 우리 프로세스도 곧 죽는다 — 쓰던 세그먼트를 지금 닫아야 남는다.
+    /// WM_QUERYENDSESSION 시점이라 아직 화면이 살아 있고, 핸들러가 도는 동안 종료는 기다린다 (길어야 몇 초).
+    /// </summary>
+    public event Action<string>? SessionEnding;
+
     private readonly MessageWindow _window;
     private IntPtr _displayNotify;
 
@@ -47,8 +54,16 @@ internal sealed class PowerWatcher : IDisposable
         SystemEvents.SessionSwitch += OnSessionSwitch;
         SystemEvents.PowerModeChanged += OnPowerMode;
         SystemEvents.DisplaySettingsChanged += OnDisplaySettings;
+        SystemEvents.SessionEnding += OnSessionEnding;
 
         _lastReason = PauseReason;
+    }
+
+    private void OnSessionEnding(object sender, SessionEndingEventArgs e)
+    {
+        var reason = e.Reason == SessionEndReasons.SystemShutdown ? "시스템 종료" : "로그오프";
+        Log.Info("세션 끝남: " + reason + " — 쓰던 세그먼트를 닫습니다");
+        SessionEnding?.Invoke(reason);
     }
 
     /// <summary>지금 멈춰야 하는 이유. null 이면 담아도 된다.</summary>
@@ -135,6 +150,7 @@ internal sealed class PowerWatcher : IDisposable
         SystemEvents.SessionSwitch -= OnSessionSwitch;
         SystemEvents.PowerModeChanged -= OnPowerMode;
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettings;
+        SystemEvents.SessionEnding -= OnSessionEnding;
         if (_displayNotify != IntPtr.Zero)
         {
             UnregisterPowerSettingNotification(_displayNotify);

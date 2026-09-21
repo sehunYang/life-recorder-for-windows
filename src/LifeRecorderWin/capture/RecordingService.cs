@@ -24,6 +24,8 @@ internal sealed class RecordingService : IDisposable
     private ScreenRecorderSession? _session;
     private System.Threading.Timer? _retry;
     private int _retryStep;
+    /// <summary>시스템 종료·로그오프가 시작됐다. 이 뒤로는 어떤 이유로도 다시 시작하지 않는다.</summary>
+    private bool _ending;
 
     private static readonly int[] RetryDelaysMs = { 10_000, 30_000, 60_000, 300_000 };
 
@@ -33,6 +35,7 @@ internal sealed class RecordingService : IDisposable
         _power = new PowerWatcher();
         _power.PauseReasonChanged += OnPauseReasonChanged;
         _power.DisplayLayoutChanged += OnDisplayLayoutChanged;
+        _power.SessionEnding += OnSessionEnding;
         _apps = new ActiveWindowLog(_media);
         _idle = new IdleWatcher(_media);
         _idle.PauseReasonChanged += OnPauseReasonChanged;
@@ -85,7 +88,7 @@ internal sealed class RecordingService : IDisposable
             var enabled = Prefs.Current.RecordingEnabled;
             // 전원·세션 쪽 이유가 먼저다. 잠겨 있으면 입력이 없는 것은 당연하니 그 이유를 보여 준다.
             var pause = _power.PauseReason ?? _idle.PauseReason;
-            var shouldRun = enabled && pause == null;
+            var shouldRun = enabled && pause == null && !_ending;
 
             RecorderState.Update(s => s with { ScreenPausedReason = enabled ? pause : null });
 
@@ -134,14 +137,15 @@ internal sealed class RecordingService : IDisposable
         _uploads.RequestNow();
     }
 
-    private void StopSession(string reason)
+    private void StopSession(string reason, int quitTimeoutMs = -1)
     {
         var s = _session;
         _session = null;
         CancelRetry();
         _apps.Stop(reason);
         _text.Stop(reason);
-        s?.Stop();
+        if (quitTimeoutMs > 0) s?.Stop(quitTimeoutMs);
+        else s?.Stop();
         s?.Dispose();
         RecorderState.Update(x => x with { ScreenRecording = false, CurrentSegmentStart = null });
         RecorderState.RefreshPending();
@@ -165,7 +169,22 @@ internal sealed class RecordingService : IDisposable
             RecorderState.Update(s => s with { ScreenRecording = false, ScreenStoppedReason = reason });
             RecorderState.RefreshPending();
             _uploads.RequestNow();
-            if (Prefs.Current.RecordingEnabled) ScheduleRetry();
+            if (Prefs.Current.RecordingEnabled && !_ending) ScheduleRetry();
+        }
+    }
+
+    /// <summary>
+    /// 시스템 종료·로그오프. 바탕화면이 사라지면 gdigrab 이 I/O 오류로 죽고, 그 뒤 Windows 가 ffmpeg 을
+    /// 죽이면 쓰던 세그먼트는 moov 없이 버려진다. 아직 화면이 살아 있는 지금 <c>q</c> 로 닫아 둔다.
+    /// (2026-09-18 school-work 는 운 좋게 ffmpeg 이 스스로 닫았지만, 보장이 아니었다.)
+    /// </summary>
+    private void OnSessionEnding(string reason)
+    {
+        lock (_lock)
+        {
+            _ending = true;
+            if (_session == null) return;
+            StopSession(reason, ScreenRecorderSession.ShutdownQuitTimeoutMs);
         }
     }
 
@@ -218,6 +237,7 @@ internal sealed class RecordingService : IDisposable
         }
         _power.PauseReasonChanged -= OnPauseReasonChanged;
         _power.DisplayLayoutChanged -= OnDisplayLayoutChanged;
+        _power.SessionEnding -= OnSessionEnding;
         _power.Dispose();
         _idle.PauseReasonChanged -= OnPauseReasonChanged;
         _idle.Polled -= _apps.OnMediaPolled;

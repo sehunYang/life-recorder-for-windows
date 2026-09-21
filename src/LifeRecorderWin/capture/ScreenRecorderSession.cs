@@ -123,7 +123,11 @@ internal sealed class ScreenRecorderSession : IDisposable
     /// 정상 종료를 요청한다. ffmpeg 이 stdin 에서 <c>q</c> 를 받으면 쓰던 세그먼트를 닫고 나간다.
     /// 안 나가면 죽인다 (그 세그먼트는 moov 가 없어 버려진다).
     /// </summary>
-    public void Stop()
+    /// <param name="timeoutMs">
+    /// <c>q</c> 뒤에 기다려 줄 시간. 시스템 종료 중에는 Windows 가 몇 초만 기다려 주므로
+    /// <see cref="ShutdownQuitTimeoutMs"/> 로 짧게 부른다 (ffmpeg 이 세그먼트를 닫는 데는 보통 1초가 안 걸린다).
+    /// </param>
+    public void Stop(int timeoutMs = QuitTimeoutMs)
     {
         Process? p;
         lock (_lock)
@@ -147,7 +151,7 @@ internal sealed class ScreenRecorderSession : IDisposable
                 Log.Warn("ffmpeg 종료 요청 실패: " + e.Message);
             }
 
-            if (!p.WaitForExit(QuitTimeoutMs))
+            if (!p.WaitForExit(timeoutMs))
             {
                 Log.Warn("ffmpeg 이 제때 끝나지 않아 강제 종료합니다 (마지막 세그먼트는 버려집니다)");
                 try { p.Kill(entireProcessTree: true); } catch (Exception) { }
@@ -171,6 +175,8 @@ internal sealed class ScreenRecorderSession : IDisposable
 
     private const int SweepPeriod = 10_000;
     private const int QuitTimeoutMs = 8_000;
+    /// <summary>시스템 종료 중 기다려 줄 시간. Windows 의 응답 대기(기본 5초)보다 짧아야 강제 종료를 피한다.</summary>
+    public const int ShutdownQuitTimeoutMs = 3_000;
 
     /// <summary>
     /// gdigrab 의 <c>desktop</c> 은 기본값이 **주 모니터 하나**다 (SM_CXSCREEN).
