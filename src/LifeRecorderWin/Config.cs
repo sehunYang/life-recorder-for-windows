@@ -42,8 +42,8 @@ internal static class Config
     /// 1920x1080 @ 2fps 를 1.5Mbps 로 본 기준을 "픽셀·프레임당 비트"로 환산한 값.
     /// 축소한 뒤의 프레임이 넓어지면 상한도 같은 비율로 올라간다.
     ///
-    /// 이건 **상한**일 뿐이고 평소 용량을 정하는 것은 <see cref="ScreenCrf"/> 다.
-    /// 정지 화면에서는 CRF 쪽이 훨씬 낮은 값을 고르기 때문에 상한에 닿지 않는다.
+    /// 이건 **상한**일 뿐이고 평소 용량을 정하는 것은 품질 기준(<see cref="ScreenAmfQmin"/>·<see cref="ScreenCrf"/>)이다.
+    /// 정지 화면에서는 그쪽이 훨씬 낮은 값을 고르기 때문에 상한에 닿지 않는다.
     /// </summary>
     public const double ScreenBitsPerPixelPerFrame = 1_500_000.0 / (1920.0 * 1080.0 * ScreenFps);
 
@@ -51,7 +51,23 @@ internal static class Config
     public const int ScreenMaxBitrate = 8_000_000;
 
     /// <summary>
-    /// 품질 기준값. 정지 화면에서는 비트를 거의 쓰지 않고, 움직일 때만 위 상한까지 쓴다.
+    /// 인코더 후보. 앞에서부터 이 컴퓨터에서 되는 첫 번째를 쓴다 (<see cref="Capture.Encoders"/>).
+    ///
+    /// h264_amf(AMD 그래픽)는 인코딩을 GPU 에 넘겨 CPU 를 아낀다. 2026-09-26 이 PC(Ryzen 7 5800U) 실측,
+    /// 2880x1080 60초 인코딩에 든 CPU 시간이 libx264 약 4.2초 → AMF 약 0.4초. 정지 화면 용량은 오히려 작았고
+    /// (733 ↔ 993kbps) 글자 판독은 같았다. AMD 가 없는 컴퓨터는 libx264 로 내려간다.
+    /// 인텔(h264_qsv)·NVIDIA(h264_nvenc)는 옵션을 실측하지 않아 넣지 않았다.
+    /// </summary>
+    public static readonly string[] ScreenEncoders = { "h264_amf", "libx264" };
+
+    /// <summary>
+    /// AMF 의 품질 하한(QP 최솟값). 이보다 곱게는 안 만든다 — 정지 화면에서 비트를 거의 안 쓰게 하는 몫이다.
+    /// 16 에서 SSIM 이 libx264 CRF 26 과 같았다(0.9962 ↔ 0.9959). 올리면 작아지고 흐려진다 (18: 547kbps, 0.9950).
+    /// </summary>
+    public const int ScreenAmfQmin = 16;
+
+    /// <summary>
+    /// libx264 의 품질 기준값. 정지 화면에서는 비트를 거의 쓰지 않고, 움직일 때만 위 상한까지 쓴다.
     /// 안드로이드에서 VBR 로 얻던 동작을 x264 에서는 CRF + maxrate 로 만든다.
     /// </summary>
     public const int ScreenCrf = 26;
@@ -68,9 +84,6 @@ internal static class Config
     /// B프레임과 lookahead 를 포기하는 대신 파일이 조금 커진다.
     /// </summary>
     public const string ScreenTune = "zerolatency";
-
-    /// <summary>하드웨어 인코더를 쓰려면 h264_nvenc / h264_qsv / h264_amf 로 바꾼다.</summary>
-    public const string ScreenEncoder = "libx264";
 
     /// <summary>
     /// 키프레임 간격(초). 세그먼트는 키프레임에서만 갈리므로 경계 오차의 상한이기도 하다.

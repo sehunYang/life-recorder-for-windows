@@ -32,6 +32,10 @@ internal sealed class ScreenRecorderSession : IDisposable
     private System.Threading.Timer? _sweep;
     private volatile bool _stopping;
     private readonly List<string> _stderrTail = new();
+    private string _encoder = "libx264";
+
+    /// <summary>이만큼 안에 죽으면 인코더 탓으로 보고 다음 인코더로 내려간다.</summary>
+    private static readonly TimeSpan EarlyDeath = TimeSpan.FromSeconds(30);
 
     public DateTime StartedAt { get; private set; }
 
@@ -73,7 +77,8 @@ internal sealed class ScreenRecorderSession : IDisposable
             return false;
         }
 
-        var args = BuildArgs(rect);
+        _encoder = Encoders.Choose(exe);
+        var args = BuildArgs(rect, _encoder);
         var psi = new ProcessStartInfo(exe)
         {
             Arguments = args,
@@ -138,7 +143,7 @@ internal sealed class ScreenRecorderSession : IDisposable
             _sweep = new System.Threading.Timer(_ => Sweep(), null, SweepPeriod, SweepPeriod);
 
             Log.Info($"화면 녹화 시작 [{Storage.DeviceName}] {rect.Width}x{rect.Height} → {CaptureSize} "
-                     + $"@{Config.ScreenFps}fps, 상한 {Bitrate(rect) / 1000}kbps "
+                     + $"@{Config.ScreenFps}fps, {_encoder}, 상한 {Bitrate(rect) / 1000}kbps "
                      + $"(화면 배율 {Dpi.SystemScalePercent()})");
             return true;
         }
@@ -253,7 +258,7 @@ internal sealed class ScreenRecorderSession : IDisposable
         return (int)Math.Clamp(raw, Config.ScreenMinBitrate, Config.ScreenMaxBitrate);
     }
 
-    private static string BuildArgs(Rectangle rect)
+    private static string BuildArgs(Rectangle rect, string encoder)
     {
         var bitrate = Bitrate(rect);
         var pattern = Storage.ScreenPattern();
@@ -279,16 +284,10 @@ internal sealed class ScreenRecorderSession : IDisposable
             a.AddRange(new[] { "-vf", $"scale={w}:{h}:flags=bicubic" });
         }
 
+        // 인코딩: 정지 화면에서는 비트를 거의 안 쓰고, 움직일 때만 상한까지. 인코더마다 옵션이 다르다.
+        a.AddRange(Encoders.Args(encoder, bitrate));
         a.AddRange(new[]
         {
-            // 인코딩: 정지 화면에서는 비트를 거의 안 쓰고(CRF), 움직일 때만 상한까지(maxrate).
-            "-c:v", Config.ScreenEncoder,
-            "-preset", Config.ScreenPreset,
-            // 프레임 버퍼링을 없앤다. 2fps 에서는 이게 없으면 세그먼트 경계가 20초 가까이 밀린다.
-            "-tune", Config.ScreenTune,
-            "-crf", Config.ScreenCrf.ToString(inv),
-            "-maxrate", bitrate.ToString(inv),
-            "-bufsize", (bitrate * 2).ToString(inv),
             "-pix_fmt", "yuv420p",
 
             // 세그먼트는 키프레임에서만 갈린다. 정각 경계 오차의 상한이 이 간격이다.
@@ -383,7 +382,7 @@ internal sealed class ScreenRecorderSession : IDisposable
 
     private void OnStderr(object sender, DataReceivedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(e.Data)) return;
+        if (string.IsNullOrWhiteSpace(e.Data) || Encoders.IsNoise(e.Data)) return;
         Log.Warn("ffmpeg: " + e.Data);
         lock (_stderrTail)
         {
@@ -399,6 +398,8 @@ internal sealed class ScreenRecorderSession : IDisposable
         lock (_stderrTail) tail = _stderrTail.Count > 0 ? _stderrTail[^1] : "";
         var reason = string.IsNullOrEmpty(tail) ? "ffmpeg 이 종료되었습니다" : "ffmpeg: " + tail;
         Log.Error("화면 녹화가 예기치 않게 끝났습니다 — " + reason);
+        // 켜자마자 죽었으면 하드웨어 인코더 탓일 가능성이 크다. 다시 붙을 때는 다음 인코더로.
+        if (DateTime.Now - StartedAt < EarlyDeath) Encoders.MarkBroken(_encoder);
         _sweep?.Dispose();
         _sweep = null;
         Stopped?.Invoke(reason);

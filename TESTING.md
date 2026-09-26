@@ -101,7 +101,8 @@ Get-ChildItem "$env:LOCALAPPDATA\LifeRecorder\queue"
 
 - 트레이가 **빨강**, 상태창이 `기록 중`, `2880x1086 · 2fps`
 - `work\` 에 `pcscreen_<시각>_<컴퓨터이름>.mp4` 하나가 생기고 **크기가 계속 는다**
-- 로그: `화면 녹화 시작 [home] 5760x2172 → 2880x1086 @2fps, 상한 2262kbps (화면 배율 150%)`
+- 로그: `인코더: h264_amf` (AMD 가 없으면 `인코더 h264_amf 를 이 컴퓨터에서 쓸 수 없어 다음 것을 봅니다` → `인코더: libx264`)
+- 로그: `화면 녹화 시작 [home] 5760x2172 → 2880x1086 @2fps, h264_amf, 상한 2262kbps (화면 배율 150%)`
   - 앞이 잡는 크기(물리 픽셀), 뒤가 파일에 들어가는 크기다. 화면 배율에 따라 자동으로 정해진다
 
 **정각 분할**은 다음 정시까지 기다려야 확인된다. 정각이 지나면:
@@ -228,8 +229,8 @@ Drive의 `index/` 에서 안드로이드의 `index_...` 와 나란히 보이면 
 너무 크면 `Config.cs` 에서:
 
 - `ScreenTargetLogicalScale` 을 `0.5` 로 (해상도를 줄인다 — 글씨 판독이 나빠진다)
-- `ScreenCrf` 를 28~30으로 올린다 (움직임이 많은 구간에서 뭉개진다)
-- `ScreenBitsPerPixelPerFrame` 을 낮춘다 (상한만 내린다. 평소 용량은 CRF 가 정한다)
+- AMF 면 `ScreenAmfQmin` 을 18로, libx264 면 `ScreenCrf` 를 28~30으로 올린다 (움직임이 많은 구간에서 뭉개진다)
+- `ScreenBitsPerPixelPerFrame` 을 낮춘다 (상한만 내린다. 평소 용량은 품질 기준이 정한다)
 
 ---
 
