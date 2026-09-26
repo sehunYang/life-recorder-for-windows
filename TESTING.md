@@ -42,6 +42,7 @@ Copy-Item dist\LifeRecorder.exe "$env:TEMP\lr-test\" -Force   # 저장소 밖으
 ## 1. 캡처가 되는지 (앱 없이 ffmpeg만)
 
 앱을 의심하기 전에 ffmpeg 단독으로 5초 찍어 본다.
+앱은 gdigrab 대신 화면을 직접 떠서 ffmpeg 에 넘기지만, 뜨는 방식(BitBlt)이 같아서 여기서 검으면 앱에서도 검다.
 `<L> <T> <W> <H>` 는 가상 데스크톱 값이다:
 
 ```powershell
@@ -141,6 +142,17 @@ awpcscreentext_$(Get-Date -Format yyyy-MM-dd)_*.jsonl.part" -Tail 3
 - 비밀번호 칸(브라우저 로그인 폼)은 `nodes` 에 없어야 한다
 - 60초 넘게 손을 떼면 읽지 않는다 (줄이 안 는다)
 - OFF 하면 `"event":"stop"` 의 `reason` 끝에 `(읽기 N회 · 노드 M · 느린 창 K)`
+
+### 3-3. 가린 창 (Brave · Chrome 시크릿)
+
+일반 Chrome 창, Chrome 시크릿 창(`Ctrl`+`Shift`+`N`), Brave 창을 나란히 띄우고 시크릿 창 위에 메모장을 조금 겹쳐 둔 채 1분 녹화한다.
+
+- 로그: `화면 가림: 창 N개를 검게 칠합니다` (가릴 창 수가 바뀔 때마다 한 줄)
+- 영상: 시크릿 창과 Brave 창 자리가 검다. **메모장이 겹친 부분은 메모장이 보인다.** 일반 Chrome 창은 그대로 보인다
+- 시크릿 창을 끌고 다녀도 가장자리가 새지 않는다. 새 시크릿 창을 열면 처음 뜬 장부터 검다
+- `rawpcapp_`: 시크릿·Brave 창을 앞으로 가져오면 `"event":"focus","proc":"chrome","private":true` — `title`·`url` 이 없어야 한다
+- `rawpcscreentext_`: 시크릿·Brave 창이 앞에 있는 동안 `"kind":"screen"` 줄이 늘지 않는다
+- 시크릿 창에서 유튜브를 틀면 `media` 줄이 `"app":"Chrome","private":true` 로 제목 없이 난다
 
 ---
 

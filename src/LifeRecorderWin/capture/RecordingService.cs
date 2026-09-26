@@ -174,8 +174,8 @@ internal sealed class RecordingService : IDisposable
     }
 
     /// <summary>
-    /// 시스템 종료·로그오프. 바탕화면이 사라지면 gdigrab 이 I/O 오류로 죽고, 그 뒤 Windows 가 ffmpeg 을
-    /// 죽이면 쓰던 세그먼트는 moov 없이 버려진다. 아직 화면이 살아 있는 지금 <c>q</c> 로 닫아 둔다.
+    /// 시스템 종료·로그오프. 바탕화면이 사라진 뒤 Windows 가 ffmpeg 을
+    /// 죽이면 쓰던 세그먼트는 moov 없이 버려진다. 아직 화면이 살아 있는 지금 stdin 을 닫아 끝내 둔다.
     /// (2026-09-18 school-work 는 운 좋게 ffmpeg 이 스스로 닫았지만, 보장이 아니었다.)
     /// </summary>
     private void OnSessionEnding(string reason)

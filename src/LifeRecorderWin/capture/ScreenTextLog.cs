@@ -13,8 +13,8 @@ namespace LifeRecorderWin.Capture;
 /// 주므로 OCR 없이 원문이 남는다 — 크롬 웹 본문, 오피스, 탐색기, VS Code, 카카오톡 PC 가 그렇다.
 /// 그림으로 그리는 것(게임·영상)과 트리를 내놓지 않는 앱은 안 온다. 그건 mp4 가 맡는다.
 ///
-/// 무엇을 버릴지는 여기서 정하지 않는다. 내려받은 쪽이 정한다. 예외는 폰과 같이 둘뿐이다 —
-/// 비밀번호 입력란(<c>IsPassword</c>)과 이 앱 자신의 창. 사람이 없으면(입력 60초 없음) 읽지 않는다.
+/// 무엇을 버릴지는 여기서 정하지 않는다. 내려받은 쪽이 정한다. 예외는 셋이다 —
+/// 비밀번호 입력란(<c>IsPassword</c>)과 이 앱 자신의 창, 그리고 가린 창(Brave·Chrome 시크릿, <see cref="PrivateWindows"/>). 사람이 없으면(입력 60초 없음) 읽지 않는다.
 ///
 /// <code>
 ///   index\ rawpcscreentext_yyyy-MM-dd_&lt;기기&gt;.jsonl.part  ← 오늘치 (업로드 대상 아님)
@@ -97,6 +97,7 @@ internal sealed class ScreenTextLog : IDisposable
             GetWindowThreadProcessId(h, out var pidU);
             var pid = (int)pidU;
             if (pid == SelfPid) { Trace?.Invoke("self"); return; }
+            if (PrivateWindows.IsPrivate(h)) { Trace?.Invoke("private"); _lastKey = null; return; }   // Brave·Chrome 시크릿은 한 글자도 안 남긴다
             var proc = ProcName(pid);
             var title = Title(h);
 

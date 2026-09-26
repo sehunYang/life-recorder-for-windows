@@ -19,6 +19,9 @@ namespace LifeRecorderWin.Capture;
 ///   queue\ pcapp_yyyy-MM-dd_&lt;기기&gt;.jsonl          ← 날이 바뀌어 확정된 것, 업로드 대상
 /// </code>
 ///
+/// 가린 창(Brave·Chrome 시크릿, <see cref="PrivateWindows"/>)이 앞에 오면 제목·URL 없이
+/// <c>"private": true</c> 만 적는다. 재생 중인 미디어의 제목도 같은 규칙으로 빠진다(<see cref="MediaWatcher"/>).
+///
 /// 해석하지 않는다. 어느 앱이 "의미 있는" 앱인지는 내려받은 쪽이 정한다.
 /// 안드로이드의 <c>app_&lt;날짜&gt;.jsonl</c>(UsageEvents)과 같은 Drive 폴더에 올라간다.
 /// </summary>
@@ -80,7 +83,7 @@ internal sealed class ActiveWindowLog : IDisposable
         try
         {
             var p = _media.Playing;
-            var key = string.Join("", p.Select(s => s.App + "|" + s.Title + "|" + s.Artist));
+            var key = string.Join("", p.Select(s => s.App + "|" + s.Title + "|" + s.Artist + "|" + s.Private));
             if (key != _lastMediaKey)
             {
                 _lastMediaKey = key;
@@ -88,11 +91,16 @@ internal sealed class ActiveWindowLog : IDisposable
                     Write(new Dictionary<string, object?> { ["event"] = "media", ["state"] = "stopped" });
                 else
                     foreach (var s in p)
-                        Write(new Dictionary<string, object?>
-                        {
-                            ["event"] = "media", ["state"] = "playing",
-                            ["app"] = s.App, ["title"] = s.Title, ["artist"] = s.Artist,
-                        });
+                        Write(s.Private
+                            ? new Dictionary<string, object?>
+                            {
+                                ["event"] = "media", ["state"] = "playing", ["app"] = s.App, ["private"] = true,
+                            }
+                            : new Dictionary<string, object?>
+                            {
+                                ["event"] = "media", ["state"] = "playing",
+                                ["app"] = s.App, ["title"] = s.Title, ["artist"] = s.Artist,
+                            });
             }
             if (_media.Fullscreen != _lastFullscreen)
             {
@@ -123,8 +131,21 @@ internal sealed class ActiveWindowLog : IDisposable
             if (h == IntPtr.Zero) return;
             GetWindowThreadProcessId(h, out var pid);
             var proc = ProcName((int)pid);
-            var title = Title(h);
 
+            if (PrivateWindows.IsPrivate(h))
+            {
+                // Brave·Chrome 시크릿. 제목·URL·스크롤은 남기지 않고 그런 창이 앞에 있었다는 것만.
+                _seenUrl = null;
+                var pkey = proc + "private";
+                if (pkey != _lastKey)
+                {
+                    _lastKey = pkey;
+                    Write(new Dictionary<string, object?> { ["event"] = "focus", ["proc"] = proc, ["private"] = true });
+                }
+                return;
+            }
+
+            var title = Title(h);
             string? url = null;
             if (Config.BrowserProcs.Contains(proc, StringComparer.OrdinalIgnoreCase))
             {

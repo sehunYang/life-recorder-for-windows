@@ -15,7 +15,7 @@ namespace LifeRecorderWin.Capture;
 /// </summary>
 internal sealed class MediaWatcher : IDisposable
 {
-    public sealed record Session(string App, string Title, string Artist);
+    public sealed record Session(string App, string Title, string Artist, bool Private = false);
 
     private readonly object _lock = new();
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
@@ -74,6 +74,13 @@ internal sealed class MediaWatcher : IDisposable
             if (s.GetPlaybackInfo()?.PlaybackStatus != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing) continue;
             var app = s.SourceAppUserModelId ?? "";
             string title = "", artist = "";
+            if (IsPrivateSource(app))
+            {
+                // Brave, 또는 시크릿 창이 떠 있는 동안의 Chrome. 어느 창에서 트는지 세션만 봐서는 모르므로
+                // 제목을 통째로 뺀다. 재생 중이라는 사실(녹화를 이어갈지)은 그대로 쓴다.
+                list.Add(new Session(app, "", "", Private: true));
+                continue;
+            }
             try
             {
                 var props = s.TryGetMediaPropertiesAsync().AsTask().GetAwaiter().GetResult();
@@ -85,6 +92,10 @@ internal sealed class MediaWatcher : IDisposable
         }
         return list;
     }
+
+    private static bool IsPrivateSource(string app) =>
+        app.Contains("brave", StringComparison.OrdinalIgnoreCase)
+        || (app.Contains("chrome", StringComparison.OrdinalIgnoreCase) && PrivateWindows.AnyChromePrivate());
 
     private float Peak()
     {
