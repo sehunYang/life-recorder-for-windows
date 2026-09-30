@@ -14,3 +14,6 @@ tools/ffmpeg/
 # 배포 꾸러미
 dist/
 *.zip
+
+# oh-my-claudecode 작업 기록 (코드 아님)
+.omc/
