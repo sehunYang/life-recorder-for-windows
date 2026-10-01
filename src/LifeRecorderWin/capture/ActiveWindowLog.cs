@@ -15,9 +15,10 @@ namespace LifeRecorderWin.Capture;
 /// 녹화 세션과 같이 켜지고 꺼지므로, 잠금·모니터 꺼짐 동안은 영상처럼 비어 있다.
 ///
 /// <code>
-///   index\ rawpcapp_yyyy-MM-dd_&lt;기기&gt;.jsonl.part  ← 오늘치 (업로드 대상 아님)
-///   queue\ pcapp_yyyy-MM-dd_&lt;기기&gt;.jsonl          ← 날이 바뀌어 확정된 것, 업로드 대상
+///   index\ rawpcapp_yyyy-MM-dd_&lt;기기&gt;_hHH.jsonl.part  ← 지금 시간치 (업로드 대상 아님)
+///   queue\ pcapp_yyyy-MM-dd_&lt;기기&gt;_hHH.jsonl          ← 정각 1분 뒤 확정된 한 시간치, 업로드 대상
 /// </code>
+/// 한 시간 조각의 규칙은 <see cref="HourSlice"/> 에 있다. 2026-10-01 전 판이 남긴 하루치 raw 는 날이 지나면 하루 파일로 확정된다.
 ///
 /// 가린 창(Brave·Chrome 시크릿, <see cref="PrivateWindows"/>)이 앞에 오면 제목·URL 없이
 /// <c>"private": true</c> 만 적는다. 재생 중인 미디어의 제목도 같은 규칙으로 빠진다(<see cref="MediaWatcher"/>).
@@ -215,9 +216,10 @@ internal sealed class ActiveWindowLog : IDisposable
 
     private void Write(Dictionary<string, object?> fields)
     {
+        var now = DateTimeOffset.Now;
         var record = new Dictionary<string, object?>
         {
-            ["t"] = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+            ["t"] = now.ToUnixTimeMilliseconds(),
             ["kind"] = "app",
         };
         foreach (var (k, v) in fields) record[k] = v;
@@ -227,7 +229,8 @@ internal sealed class ActiveWindowLog : IDisposable
         {
             try
             {
-                var path = Path.Combine(Storage.IndexDir, Storage.RawAppName(Storage.Today()));
+                // 줄의 시각이 속한 한 시간 조각에 쓴다. 정각을 넘기면 새 파일이 된다.
+                var path = Path.Combine(Storage.IndexDir, Storage.RawAppName(HourSlice.Key(now.LocalDateTime)));
                 File.AppendAllText(path, JsonSerializer.Serialize(record, Storage.JsonlOptions) + "\n", Storage.Utf8NoBom);
             }
             catch (Exception e)
@@ -237,10 +240,10 @@ internal sealed class ActiveWindowLog : IDisposable
         }
     }
 
-    /// <summary>날이 지난 기록을 업로드 대상으로 확정한다. 수집 기록과 같은 규칙.</summary>
-    public static int FinalizeCompletedDays()
+    /// <summary>닫힌 한 시간치(예전 판의 하루치는 날이 지난 것)를 업로드 대상으로 확정한다.</summary>
+    public static int FinalizeCompleted()
     {
-        lock (Lock) return Storage.FinalizeDailyRaw(Config.RawAppPrefix, Storage.AppName);
+        lock (Lock) return Storage.FinalizeSlicedRaw(Config.RawAppPrefix, Storage.AppName);
     }
 
     /// <summary>

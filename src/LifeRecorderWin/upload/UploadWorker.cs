@@ -23,10 +23,11 @@ internal sealed class UploadWorker
     /// <returns>true 면 대기열을 비웠다. false 면 다시 시도해야 한다.</returns>
     public async Task<bool> RunAsync(CancellationToken ct)
     {
-        // 날이 지난 수집 기록·앞 창 기록을 먼저 확정해서 이번 차례에 같이 올린다.
+        // 닫힌 기록을 먼저 확정해서 이번 차례에 같이 올린다.
+        // 수집 기록은 날이 지난 것, 앞 창 기록·화면 글자는 정각 1분이 지난 한 시간치다.
         IndexLog.FinalizeCompletedDays();
-        Capture.ActiveWindowLog.FinalizeCompletedDays();
-        Capture.ScreenTextLog.FinalizeCompletedDays();
+        Capture.ActiveWindowLog.FinalizeCompleted();
+        Capture.ScreenTextLog.FinalizeCompleted();
         RecorderState.RefreshPending();
 
         string token;

@@ -165,6 +165,13 @@ internal static class Config
     /// <summary>놓친 파일이 있어도 이 간격마다 한 번은 시도하는 안전망.</summary>
     public static readonly TimeSpan UploadPeriod = TimeSpan.FromMinutes(30);
 
+    /// <summary>
+    /// 정각에서 이만큼 지나면 업로드를 한 번 돌린다. 방금 닫힌 한 시간치 글자 기록(<see cref="HourSlice"/>)을 올리기 위해서다.
+    /// 확정 유예(1분)보다 길어야 한다. 세그먼트가 닫힐 때 도는 업로드는 정각 직후라 그 시간을 아직 못 올린다.
+    /// 입력이 없어 녹화를 쉬는 동안에는 세그먼트도 안 닫히므로 세그먼트 대신 시계로 건다. 안드로이드는 3분이다.
+    /// </summary>
+    public static readonly TimeSpan UploadTailDelay = TimeSpan.FromMinutes(3);
+
     /// <summary>업로드가 실패했을 때 다시 시도하기까지.</summary>
     public static readonly TimeSpan UploadRetryDelay = TimeSpan.FromMinutes(1);
 
@@ -203,10 +210,10 @@ internal static class Config
     /// <summary>오늘치라 아직 올리지 않는 수집 기록.</summary>
     public const string RawIndexPrefix = "rawpcindex_";
 
-    /// <summary>확정된 앞 창 기록. 안드로이드는 <c>app_</c> 다.</summary>
+    /// <summary>확정된 앞 창 기록 (한 시간 조각, 예전 판이 남긴 날은 하루치). 안드로이드는 <c>app_</c> 다.</summary>
     public const string AppPrefix = "pcapp_";
 
-    /// <summary>오늘치라 아직 올리지 않는 앞 창 기록.</summary>
+    /// <summary>지금 시간치라 아직 올리지 않는 앞 창 기록.</summary>
     public const string RawAppPrefix = "rawpcapp_";
 
     /// <summary>

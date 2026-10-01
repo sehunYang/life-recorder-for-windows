@@ -17,9 +17,10 @@ namespace LifeRecorderWin.Capture;
 /// 비밀번호 입력란(<c>IsPassword</c>)과 이 앱 자신의 창, 그리고 가린 창(Brave·Chrome 시크릿, <see cref="PrivateWindows"/>). 사람이 없으면(입력 60초 없음) 읽지 않는다.
 ///
 /// <code>
-///   index\ rawpcscreentext_yyyy-MM-dd_&lt;기기&gt;.jsonl.part  ← 오늘치 (업로드 대상 아님)
-///   queue\ pcscreentext_yyyy-MM-dd_&lt;기기&gt;.jsonl          ← 날이 바뀌어 확정된 것, 업로드 대상
+///   index\ rawpcscreentext_yyyy-MM-dd_&lt;기기&gt;_hHH.jsonl.part  ← 지금 시간치 (업로드 대상 아님)
+///   queue\ pcscreentext_yyyy-MM-dd_&lt;기기&gt;_hHH.jsonl          ← 정각 1분 뒤 확정된 한 시간치, 업로드 대상
 /// </code>
+/// 앞 창 기록과 같은 규칙이다 (<see cref="HourSlice"/>).
 ///
 /// 폰과 같은 규칙: 1.5초마다 보되 **새로 나타난 글자 노드만** 적는다(같은 창에서 2분 안에 본 것은 다시 안 넣음),
 /// 입력란은 두 번 연속 같을 때만(타자 중간 상태 제외), 진행 막대는 뺀다.
@@ -225,14 +226,15 @@ internal sealed class ScreenTextLog : IDisposable
 
     private void Write(Dictionary<string, object?> fields)
     {
-        var record = new Dictionary<string, object?> { ["t"] = DateTimeOffset.Now.ToUnixTimeMilliseconds() };
+        var now = DateTimeOffset.Now;
+        var record = new Dictionary<string, object?> { ["t"] = now.ToUnixTimeMilliseconds() };
         foreach (var (k, v) in fields) record[k] = v;
         record["device"] = Storage.DeviceName;
         lock (Lock)
         {
             try
             {
-                var path = Path.Combine(Storage.IndexDir, Storage.RawScreenTextName(Storage.Today()));
+                var path = Path.Combine(Storage.IndexDir, Storage.RawScreenTextName(HourSlice.Key(now.LocalDateTime)));
                 File.AppendAllText(path, JsonSerializer.Serialize(record, Storage.JsonlOptions) + "\n", Storage.Utf8NoBom);
             }
             catch (Exception e)
@@ -242,9 +244,10 @@ internal sealed class ScreenTextLog : IDisposable
         }
     }
 
-    public static int FinalizeCompletedDays()
+    /// <summary>닫힌 한 시간치(예전 판의 하루치는 날이 지난 것)를 업로드 대상으로 확정한다.</summary>
+    public static int FinalizeCompleted()
     {
-        lock (Lock) return Storage.FinalizeDailyRaw(Config.RawScreenTextPrefix, Storage.ScreenTextName);
+        lock (Lock) return Storage.FinalizeSlicedRaw(Config.RawScreenTextPrefix, Storage.ScreenTextName);
     }
 
     private string ProcName(int pid)

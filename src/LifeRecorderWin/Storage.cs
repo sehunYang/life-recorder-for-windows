@@ -10,9 +10,9 @@ namespace LifeRecorderWin;
 ///   work\   pcscreen_&lt;시각&gt;.mp4     ffmpeg 이 지금 쓰고 있는(또는 방금 닫은) 세그먼트
 ///   queue\  pcscreen_&lt;시각&gt;.mp4     완성된 업로드 대상
 ///           pcindex_&lt;날짜&gt;.jsonl     확정된 수집 기록, 업로드 대상
-///           pcapp_&lt;날짜&gt;.jsonl       확정된 앞 창 기록, 업로드 대상
+///           pcapp_&lt;날짜&gt;_&lt;기기&gt;_h&lt;시&gt;.jsonl  확정된 한 시간치 앞 창 기록, 업로드 대상 (화면 글자도 같다)
 ///   index\  rawpcindex_&lt;날짜&gt;.jsonl.part  오늘치 수집 기록 (계속 이어 쓰는 중, 업로드 대상 아님)
-///           rawpcapp_&lt;날짜&gt;.jsonl.part    오늘치 앞 창 기록 (같음)
+///           rawpcapp_&lt;날짜&gt;_&lt;기기&gt;_h&lt;시&gt;.jsonl.part  지금 시간치 앞 창 기록 (같음)
 /// </code>
 ///
 /// 업로더는 <c>queue\</c> 만 본다. 그래서 쓰는 중인 파일이 올라갈 일이 없다.
@@ -165,6 +165,7 @@ internal static class Storage
     //
     //   pcscreen_2026-09-08_13-00-00_home.mp4
     //   pcindex_2026-09-08_home.jsonl
+    //   pcapp_2026-10-01_home_h13.jsonl      ← 한 시간 조각은 기기 이름 뒤에 시(時)를 붙인다
 
     /// <summary>파일 이름에 넣을 수 있는 형태로 다듬는다. 영숫자와 하이픈만 남긴다.</summary>
     public static string SanitizeDeviceName(string raw)
@@ -192,17 +193,24 @@ internal static class Storage
     /// <summary>오늘치 수집 기록 (계속 이어 쓰는 중).</summary>
     public static string RawIndexName(string day) => $"{Config.RawIndexPrefix}{day}_{DeviceName}.jsonl{Part}";
 
-    /// <summary>확정된 하루치 앞 창 기록 (업로드 대상).</summary>
-    public static string AppName(string day) => $"{Config.AppPrefix}{day}_{DeviceName}.jsonl";
+    /// <summary>
+    /// 조각 키(<see cref="HourSlice"/>)를 파일 이름 몸통으로. 날짜·기기·시 순서다.
+    /// <c>2026-10-01_h13</c> → <c>2026-10-01_home_h13</c>, 하루 키 <c>2026-09-30</c> → <c>2026-09-30_home</c>.
+    /// </summary>
+    private static string SliceStem(string key) =>
+        key.Length > 10 ? $"{key[..10]}_{DeviceName}{key[10..]}" : $"{key}_{DeviceName}";
 
-    /// <summary>오늘치 앞 창 기록 (계속 이어 쓰는 중).</summary>
-    public static string RawAppName(string day) => $"{Config.RawAppPrefix}{day}_{DeviceName}.jsonl{Part}";
+    /// <summary>확정된 앞 창 기록 (업로드 대상). 키가 한 시간이면 한 시간치, 날짜면 하루치.</summary>
+    public static string AppName(string key) => $"{Config.AppPrefix}{SliceStem(key)}.jsonl";
 
-    /// <summary>확정된 하루치 화면 글자 (업로드 대상).</summary>
-    public static string ScreenTextName(string day) => $"{Config.ScreenTextPrefix}{day}_{DeviceName}.jsonl";
+    /// <summary>지금 쓰고 있는 앞 창 기록.</summary>
+    public static string RawAppName(string key) => $"{Config.RawAppPrefix}{SliceStem(key)}.jsonl{Part}";
 
-    /// <summary>오늘치 화면 글자 (계속 이어 쓰는 중).</summary>
-    public static string RawScreenTextName(string day) => $"{Config.RawScreenTextPrefix}{day}_{DeviceName}.jsonl{Part}";
+    /// <summary>확정된 화면 글자 (업로드 대상). 키가 한 시간이면 한 시간치, 날짜면 하루치.</summary>
+    public static string ScreenTextName(string key) => $"{Config.ScreenTextPrefix}{SliceStem(key)}.jsonl";
+
+    /// <summary>지금 쓰고 있는 화면 글자.</summary>
+    public static string RawScreenTextName(string key) => $"{Config.RawScreenTextPrefix}{SliceStem(key)}.jsonl{Part}";
 
     /// <summary>
     /// <c>rawpcindex_2026-09-08_home.jsonl.part</c> 같은 이름에서 날짜만 꺼낸다. 형식이 아니면 null.
@@ -241,28 +249,85 @@ internal static class Storage
                 continue;
             }
 
-            var dest = Path.Combine(QueueDir, doneNameOf(day));
-            try
-            {
-                if (File.Exists(dest))
-                {
-                    // 이미 확정된 날에 뒤늦게 더 붙은 경우 (업로드가 밀려 아직 대기열에 있다). 이어 붙인다.
-                    using (var src = f.OpenRead())
-                    using (var dst = new FileStream(dest, FileMode.Append, FileAccess.Write))
-                        src.CopyTo(dst);
-                    f.Delete();
-                }
-                else
-                {
-                    f.MoveTo(dest);
-                }
-                count++;
-            }
-            catch (Exception e)
-            {
-                Log.Warn($"{rawPrefix}{day} 확정 실패: {e.Message}");
-            }
+            if (MoveToQueue(f, doneNameOf(day), rawPrefix + day)) count++;
         }
         return count;
+    }
+
+    /// <summary>
+    /// <c>rawpcapp_2026-10-01_home_h13.jsonl.part</c> 같은 이름에서 조각 키(<c>2026-10-01_h13</c>)를 꺼낸다.
+    /// 예전 판이 남긴 <c>rawpcapp_2026-09-30_home.jsonl.part</c> 면 날짜(<c>2026-09-30</c>)만. 형식이 아니면 null.
+    /// 기기 이름에는 밑줄이 없으므로 날짜 뒤 둘째 밑줄이 있을 때만 시(時)로 읽는다.
+    /// </summary>
+    public static string? SliceKeyFromRawName(string rawPrefix, string fileName)
+    {
+        var day = DayFromRawName(rawPrefix, fileName);
+        if (day == null) return null;
+        var m = SlicedRawPattern.Match(fileName[(rawPrefix.Length + 10)..]);
+        if (!m.Success) return null;
+        return m.Groups[1].Success ? day + "_h" + m.Groups[1].Value : day;
+    }
+
+    /// <summary>날짜 뒤의 꼬리. <c>_&lt;기기&gt;[_hHH].jsonl.part</c></summary>
+    private static readonly System.Text.RegularExpressions.Regex SlicedRawPattern =
+        new(@"^_[^_]*(?:_h(\d{2}))?\.jsonl\.part$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// <c>index\</c> 에 쌓인 <c>.jsonl.part</c> 중 닫힌 조각을 <c>queue\</c> 로 옮겨 확정한다. 앞 창 기록·화면 글자가 쓴다.
+    /// 한 시간 조각은 정각 1분 뒤(<see cref="HourSlice.ClosedBefore"/>), 예전 판이 남긴 하루치는 날이 지나면 닫힌다.
+    /// 나머지는 <see cref="FinalizeDailyRaw"/> 와 같다. 호출하는 쪽이 자기 잠금을 잡고 부른다.
+    /// </summary>
+    /// <returns>확정한 파일 수</returns>
+    public static int FinalizeSlicedRaw(string rawPrefix, Func<string, string> doneNameOf)
+    {
+        var now = DateTime.Now;
+        var today = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var closedBefore = HourSlice.ClosedBefore(now);
+        var count = 0;
+        foreach (var f in new DirectoryInfo(IndexDir).GetFiles(rawPrefix + "*.jsonl" + Part))
+        {
+            var key = SliceKeyFromRawName(rawPrefix, f.Name);
+            if (key == null) continue;
+            var closed = key.Length == 10
+                ? string.CompareOrdinal(key, today) < 0             // 하루치 (예전 판)
+                : string.CompareOrdinal(key, closedBefore) < 0;     // 한 시간치 2026-10-01_h13
+            if (!closed) continue;
+            if (f.Length == 0)
+            {
+                try { f.Delete(); } catch (IOException) { }
+                continue;
+            }
+            if (MoveToQueue(f, doneNameOf(key), rawPrefix + key)) count++;
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// 확정 한 건. 대기열에 같은 이름이 아직 있으면(업로드가 밀렸다) 뒤에 이어 붙이고 원본을 지운다.
+    /// </summary>
+    private static bool MoveToQueue(FileInfo f, string doneName, string label)
+    {
+        var dest = Path.Combine(QueueDir, doneName);
+        try
+        {
+            if (File.Exists(dest))
+            {
+                // 이미 확정된 조각에 뒤늦게 더 붙은 경우 (업로드가 밀려 아직 대기열에 있다). 이어 붙인다.
+                using (var src = f.OpenRead())
+                using (var dst = new FileStream(dest, FileMode.Append, FileAccess.Write))
+                    src.CopyTo(dst);
+                f.Delete();
+            }
+            else
+            {
+                f.MoveTo(dest);
+            }
+            return true;
+        }
+        catch (Exception e)
+        {
+            Log.Warn($"{label} 확정 실패: {e.Message}");
+            return false;
+        }
     }
 }

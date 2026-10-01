@@ -7,6 +7,7 @@ namespace LifeRecorderWin.Upload;
 ///
 ///  - 세그먼트가 하나 닫힐 때마다
 ///  - 실패하면 잠깐 뒤에 다시
+///  - 매 정각 3분 뒤 (방금 닫힌 한 시간치 글자 기록을 올리려고. <see cref="HourSlice"/>)
 ///  - 아무 일이 없어도 30분마다 한 번 (놓친 파일을 위한 안전망)
 ///
 /// 안드로이드의 "Wi-Fi 전용 / 충전 중에만" 제약은 노트북에서 그대로 뜻이 있어 되살렸다.
@@ -75,7 +76,7 @@ internal sealed class UploadScheduler : IDisposable
             if (hold != null)
             {
                 RecorderState.Update(s => s with { UploadHoldReason = hold });
-                delay = Config.UploadHoldRecheck;
+                delay = UntilTail(Config.UploadHoldRecheck);
                 continue;
             }
             RecorderState.Update(s => s with { UploadHoldReason = null });
@@ -97,7 +98,19 @@ internal sealed class UploadScheduler : IDisposable
 
             // 성공하면 다음 정기 점검까지, 실패하면 짧게 쉬었다 다시.
             delay = done ? Config.UploadPeriod : Config.UploadRetryDelay;
+            delay = UntilTail(delay);
         }
+    }
+
+    /// <summary>
+    /// 기다릴 시간을 "다음 정각 + 3분" 이 넘지 않게 줄인다. 세그먼트가 닫힐 때 도는 업로드는 정각 직후라
+    /// 지난 시간이 아직 닫히지 않았고, 입력이 없어 녹화를 쉬면 세그먼트 자체가 안 닫힌다. 그래서 시계로 건다.
+    /// </summary>
+    private static TimeSpan UntilTail(TimeSpan delay)
+    {
+        var now = DateTime.Now;
+        var tail = HourSlice.NextTail(now, Config.UploadTailDelay) - now;
+        return tail < delay ? tail : delay;
     }
 
     /// <summary>지금 올리면 안 되는 이유. null 이면 올려도 된다. 데스크톱에서는 언제나 null 이다.</summary>

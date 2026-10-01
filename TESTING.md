@@ -128,7 +128,8 @@ Get-Content "$env:LOCALAPPDATA\LifeRecorder\index\rawpcapp_$(Get-Date -Format yy
 - 긴 기사를 열고 스크롤하면 `"event":"scroll","pos":0.31,"view":0.22` 줄이 5% 움직일 때마다 난다. 끝까지 내리면 `pos + view` 가 1에 가깝다. 유튜브 재생 화면처럼 안 내리면 안 난다
 - 1분 넘게 손을 떼면 `"event":"idle"`, 마우스를 움직이면 `"event":"active"`
 - `Win`+`L` 로 잠그면 `"event":"stop","reason":"잠금 상태"`, 풀면 다시 `start`
-- 날이 바뀌면 `queue\` 에 `pcapp_<어제>_<컴퓨터이름>.jsonl` 이 생겨 Drive `app/` 으로 올라간다
+- 정각 1분이 지나면 `index\` 의 지난 시간 `rawpcapp_<오늘>_<컴퓨터이름>_h<시>.jsonl.part` 가 `queue\` 의 `pcapp_<오늘>_<컴퓨터이름>_h<시>.jsonl` 로 옮겨지고, 정각 3분 뒤 업로드에서 Drive `app/` 으로 올라간다 (`pcscreentext_` 도 같다)
+- 이 판을 깔기 전에 쌓이던 `rawpcapp_<날짜>_<컴퓨터이름>.jsonl.part`(시가 없는 것)는 날이 바뀐 뒤 하루 파일 `pcapp_<날짜>_<컴퓨터이름>.jsonl` 로 올라간다
 
 ### 3-2. 화면 글자
 
